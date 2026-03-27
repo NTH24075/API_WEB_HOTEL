@@ -1,0 +1,26 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environments (Rất quan trọng)
+venv/
+.venv/
+env/
+ENV/
+auth_token.txt
+
+# PyCharm / IntelliJ files
+.idea/
+*.iml
+
+# Environments / Sensitive data
+.env
+.flaskenv
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Log files
+*.logb

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tìm khách sạn</title>
+    <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body data-page="hotel-list">
+    <header class="topbar">
+        <div class="container topbar-inner">
+            <div class="brand">StayBook</div>
+            <nav class="topnav">
+                <a href="/">Khách sạn</a>
+                <a href="#">Chuyến đi của tôi</a>
+                <a href="#">Đăng nhập</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="page">
+        <section class="search-hero">
+            <div class="container">
+                <h1>Tìm khách sạn với Amadeus API</h1>
+                <p>Demo học tập: tìm khách sạn theo city code rồi bấm vào từng khách sạn để xem trang chi tiết.</p>
+
+                <div class="search-panel">
+                    <div class="field">
+                        <label>City code</label>
+                        <input id="cityCode" value="BKK" placeholder="Ví dụ: BKK, PAR, SGN" />
+                    </div>
+
+                    <div class="field">
+                        <label>Check-in</label>
+                        <input id="checkInDate" type="date" value="2026-04-08" />
+                    </div>
+
+                    <div class="field">
+                        <label>Người lớn</label>
+                        <input id="adults" type="number" min="1" max="9" value="2" />
+                    </div>
+
+                    <button id="searchBtn" class="primary-btn">Tìm khách sạn</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="container">
+            <div id="hotelResults" class="hotel-grid"></div>
+        </section>
+    </main>
+
+    <script src="/static/js/hotel.js"></script>
+</body>
+</html>
