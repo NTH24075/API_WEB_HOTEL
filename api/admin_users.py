@@ -133,3 +133,29 @@ def update_user_status(
         return {"message": "Cap nhap status thanh cong"}
     finally:
         conn.close()
+
+@router.put("/delete-request/{request_id}/approve")
+def approve_delete(request_id:int , admin = Depends(require_admin)):
+    conn = get_conn()
+    try:
+        curs = conn.cursor()
+        curs.execute("select UserId from DeleteAccountRequests " \
+                    "where RequestId = ? and Status = 'Pending' ",(request_id,))
+        row=curs.fetchone()
+        if not row:
+            raise HTTPException(404,"Request is not available")
+        user_id = row.UserId
+
+        #delte user
+        curs.execute("update Users " \
+                    "set Status = 'Deleted', UpdatedAt = getdate() " \
+                    "where UserId = ? ",(user_id,))
+
+        #done request
+        curs.execute("update DeleteAccountRequests " \
+                    "set Status = 'Approved', ProcessedAt = getdate() " \
+                    "where RequestId = ? ",(request_id,))
+        conn.commit()
+        return {"message":"Da xoa thanh cong tai khoan"}
+    finally:
+        conn.close()
