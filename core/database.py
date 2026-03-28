@@ -2,8 +2,8 @@ import pyodbc
 
 conn_str = (
     "Driver={ODBC Driver 17 for SQL Server};"
-    r"Server=localhost\SQLEXPRESS;"
-    "Database=QuanLyKhachSan;"
+    "Server=DESKTOP-8872D2D;"
+    "Database=BTL_API;"
     "Trusted_Connection=yes;"
     "TrustServerCertificate=yes;"
 )

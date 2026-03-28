@@ -1,8 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
-from database import get_conn
-from dependencies import require_admin
-from schemas import AdminCreateStaffRequest, AdminUpdateRoleRequest, AdminUpdateStatusRequest
-
+from core.database import get_conn
+from core.dependencies import require_admin
+from schemas.users_schemas import (
+    AdminCreateStaffRequest,
+    AdminUpdateRoleRequest,
+    AdminUpdateStatusRequest,
+)
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
 def get_role_id_by_name(cursor, role_name:str):

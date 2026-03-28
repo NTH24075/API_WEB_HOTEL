@@ -1,7 +1,0 @@
-fastapi
-uvicorn
-pyodbc
-python-jose
-python-multipart
-pydantic
-email-validator

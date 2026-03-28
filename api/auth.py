@@ -1,9 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
-from database import get_conn
-from auth_utils import create_access_token
-from dependencies import get_current_user
-from schemas import RegisterRequest, LoginRequest, TokenResponse
-
+from core.database import get_conn
+from services.auth_utils import create_access_token
+from core.dependencies import get_current_user
+from schemas.users_schemas import RegisterRequest, LoginRequest, TokenResponse
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 def get_role_id_by_name(curs, role_name:str):

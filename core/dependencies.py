@@ -1,7 +1,7 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from database import get_conn
-from auth_utils import decode_access_token
+from core.database import get_conn
+from services.auth_utils import decode_access_token
 
 security = HTTPBearer()
 
