@@ -1,8 +1,12 @@
+import os
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from api.hotels import router as hotels_router
+
+load_dotenv()
 
 app = FastAPI(title="Hotel Demo with Amadeus")
 
@@ -11,13 +15,19 @@ templates = Jinja2Templates(directory="templates")
 
 app.include_router(hotels_router)
 
+MAPBOX_TOKEN = os.getenv("MAPBOX_TOKEN", "")
 
+@app.get("/hotels")
+def hotels_page(request: Request):
+    return templates.TemplateResponse(request=request, name="index.html", context={})
 @app.get("/")
 def home(request: Request):
     return templates.TemplateResponse(
         request=request,
-        name="index.html",
-        context={}
+        name="home.html",
+        context={
+            "mapbox_token": MAPBOX_TOKEN,
+        }
     )
 
 
@@ -35,5 +45,6 @@ def hotel_detail_page(
             "hotel_id": hotel_id,
             "check_in": check_in,
             "adults": adults,
+            "mapbox_token": MAPBOX_TOKEN,
         },
     )
