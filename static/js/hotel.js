@@ -218,3 +218,55 @@ document.addEventListener("DOMContentLoaded", () => {
     loadHotelDetail();
   }
 });
+
+
+
+
+// Lấy user_id từ localStorage (tạm thời hardcode nếu chưa có)
+function getUserId() {
+    let userId = localStorage.getItem("user_id");
+    if (!userId) {
+        userId = 1; // tạm thời dùng user_id = 1
+        localStorage.setItem("user_id", userId);
+    }
+    return userId;
+}
+
+async function addFavorite(hotelId) {
+    const userId = getUserId();
+
+    try {
+        const response = await fetch("/api/favorites", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                user_id: Number(userId),
+                hotel_id: hotelId
+            })
+        });
+
+        const text = await response.text();
+
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch {
+            data = { detail: text };
+        }
+
+        if (!response.ok) {
+            alert("Lỗi: " + (data.detail || "Không xác định"));
+            console.error("Server error:", data);
+            return;
+        }
+
+        alert(data.message);
+        console.log("✅ Đã thêm yêu thích:", data);
+
+    } catch (error) {
+        console.error("Lỗi khi thêm yêu thích:", error);
+        alert("Có lỗi xảy ra");
+    }
+}
