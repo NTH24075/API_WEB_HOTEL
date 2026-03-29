@@ -1,55 +1,201 @@
-<!DOCTYPE html>
+
 <html lang="vi">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Tìm khách sạn</title>
+    <title>StayBook – Tìm khách sạn</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/style.css" />
 </head>
 <body data-page="hotel-list">
-    <header class="topbar">
-        <div class="container topbar-inner">
-            <div class="brand">StayBook</div>
-            <nav class="topnav">
-                <a href="/">Khách sạn</a>
-                <a href="#">Chuyến đi của tôi</a>
-                <a href="#">Đăng nhập</a>
-            </nav>
+
+<header class="topbar">
+    <div class="container topbar-inner">
+        <a class="brand" href="/">Stay<span>Book</span></a>
+        <nav class="topnav">
+            <a href="/" class="active">Khách sạn</a>
+            <a href="#">Chuyến đi của tôi</a>
+            <a href="#">Đăng nhập</a>
+        </nav>
+    </div>
+</header>
+
+<section class="search-hero">
+    <div class="container">
+        <div class="hero-text">
+            <h1>Tìm <em>khách sạn</em> hoàn hảo</h1>
+            <p>Khám phá hàng nghìn lựa chọn tại mọi điểm đến trên thế giới</p>
         </div>
-    </header>
 
-    <main class="page">
-        <section class="search-hero">
-            <div class="container">
-                <h1>Tìm khách sạn với Amadeus API</h1>
-                <p>Demo học tập: tìm khách sạn theo city code rồi bấm vào từng khách sạn để xem trang chi tiết.</p>
-
-                <div class="search-panel">
-                    <div class="field">
-                        <label>City code</label>
-                        <input id="cityCode" value="BKK" placeholder="Ví dụ: BKK, PAR, SGN" />
-                    </div>
-
-                    <div class="field">
-                        <label>Check-in</label>
-                        <input id="checkInDate" type="date" value="2026-04-08" />
-                    </div>
-
-                    <div class="field">
-                        <label>Người lớn</label>
-                        <input id="adults" type="number" min="1" max="9" value="2" />
-                    </div>
-
-                    <button id="searchBtn" class="primary-btn">Tìm khách sạn</button>
-                </div>
+        <div class="search-panel">
+            <div class="field field-city">
+                <label>🏙 Điểm đến</label>
+                <input id="cityCode" value="BKK" placeholder="Ví dụ: BKK, HAN, SGN, PAR…" />
             </div>
-        </section>
+            <div class="field">
+                <label>📅 Check-in</label>
+                <input id="checkInDate" type="date" value="2026-04-08" />
+            </div>
+            <div class="field field-sm">
+                <label>👤 Người lớn</label>
+                <input id="adults" type="number" min="1" max="9" value="2" />
+            </div>
+            <div class="field field-sm">
+                <label>🛏 Phòng</label>
+                <input id="rooms" type="number" min="1" max="9" value="1" />
+            </div>
+            <button id="searchBtn" class="search-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                Tìm kiếm
+            </button>
+        </div>
+    </div>
+</section>
 
-        <section class="container">
-            <div id="hotelResults" class="hotel-grid"></div>
-        </section>
+<div class="main-layout container">
+    <aside class="sidebar" id="sidebar">
+        <div class="widget weather-widget" id="weatherWidget">
+            <div class="widget-title">🌤 Thời tiết tại điểm đến</div>
+            <div id="weatherContent" class="weather-loading">
+                <div class="spinner"></div>
+                <span>Đang tải thời tiết…</span>
+            </div>
+        </div>
+
+        <div class="widget">
+            <div class="widget-title">Ngân sách / đêm</div>
+            <div class="range-labels">
+                <span id="budgetMin">₫0</span>
+                <span id="budgetMax">₫5.000.000+</span>
+            </div>
+            <input type="range" id="budgetRange" min="0" max="5000000" step="100000" value="5000000" class="range-input" />
+        </div>
+
+        <div class="widget">
+            <div class="widget-title">⭐ Hạng sao</div>
+            <div class="star-filter" id="starFilter">
+                <label class="star-chip active"><input type="checkbox" value="all" checked> Tất cả</label>
+                <label class="star-chip"><input type="checkbox" value="5"> ★★★★★</label>
+                <label class="star-chip"><input type="checkbox" value="4"> ★★★★</label>
+                <label class="star-chip"><input type="checkbox" value="3"> ★★★</label>
+                <label class="star-chip"><input type="checkbox" value="1"> 1-2 sao</label>
+            </div>
+        </div>
+
+        <div class="widget">
+            <div class="widget-title">🛎 Tiện nghi</div>
+            <div class="amenity-list" id="amenityFilter">
+                <label class="amenity-item"><input type="checkbox" value="wifi"> Wi-Fi miễn phí</label>
+                <label class="amenity-item"><input type="checkbox" value="pool"> Hồ bơi</label>
+                <label class="amenity-item"><input type="checkbox" value="ac"> Điều hòa</label>
+                <label class="amenity-item"><input type="checkbox" value="parking"> Bãi đỗ xe</label>
+                <label class="amenity-item"><input type="checkbox" value="gym"> Phòng gym</label>
+                <label class="amenity-item"><input type="checkbox" value="spa"> Spa</label>
+                <label class="amenity-item"><input type="checkbox" value="restaurant"> Nhà hàng</label>
+                <label class="amenity-item"><input type="checkbox" value="pets"> Cho phép thú cưng</label>
+            </div>
+        </div>
+
+        <div class="widget">
+            <div class="widget-title">Loại chỗ nghỉ</div>
+            <div class="amenity-list">
+                <label class="amenity-item"><input type="checkbox" value="hotel" checked> Khách sạn</label>
+                <label class="amenity-item"><input type="checkbox" value="resort"> Resort</label>
+                <label class="amenity-item"><input type="checkbox" value="apartment"> Căn hộ / Flat</label>
+                <label class="amenity-item"><input type="checkbox" value="homestay"> Homestay</label>
+                <label class="amenity-item"><input type="checkbox" value="hostel"> Hostel</label>
+            </div>
+        </div>
+
+        <button class="apply-filter-btn" id="applyFilter">Áp dụng bộ lọc</button>
+    </aside>
+
+    <main class="results-area">
+        <div class="results-topbar" id="resultsTopbar" style="display:none">
+            <div id="resultsCount" class="results-count"></div>
+            <div class="sort-row">
+                <span>Sắp xếp:</span>
+                <select id="sortSelect" class="sort-select">
+                    <option value="default">Phù hợp nhất</option>
+                    <option value="price-asc">Giá tăng dần</option>
+                    <option value="price-desc">Giá giảm dần</option>
+                    <option value="name-asc">Tên A→Z</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="hotelResults" class="hotel-list">
+            <div class="empty-state">
+                <div class="empty-icon"></div>
+                <p>Nhập điểm đến và bấm <strong>Tìm kiếm</strong> để bắt đầu.</p>
+            </div>
+        </div>
     </main>
+</div>
 
-    <script src="/static/js/hotel.js"></script>
+<section class="why-section">
+  <div class="why-left">
+    <p class="section-label">Vì sao chọn StayBook</p>
+    <h2 class="section-heading">Đặt phòng<br><em>thông minh</em> hơn</h2>
+    <p>Chúng tôi kết hợp dữ liệu thực từ Geoapify và thời tiết thực tế để giúp bạn ra quyết định tốt nhất.</p>
+  </div>
+
+  <div class="why-cards">
+    <div class="why-card">
+      <div class="why-icon">🌤</div>
+      <div class="why-title">Dự báo thời tiết</div>
+      <div class="why-desc">Xem ngay thời tiết 3 ngày tại điểm đến ngay khi tìm kiếm.</div>
+    </div>
+    <div class="why-card">
+      <div class="why-icon">📍</div>
+      <div class="why-title">Bản đồ tích hợp</div>
+      <div class="why-desc">Xem vị trí từng khách sạn trực tiếp trên bản đồ Mapbox.</div>
+    </div>
+    <div class="why-card">
+      <div class="why-icon">⚡</div>
+      <div class="why-title">Tìm kiếm nhanh</div>
+      <div class="why-desc">Kết quả hiển thị tức thì với bộ lọc sao, giá, tiện nghi.</div>
+    </div>
+    <div class="why-card">
+      <div class="why-icon">🔒</div>
+      <div class="why-title">Lưu trữ an toàn</div>
+      <div class="why-desc">Lịch sử đặt phòng được lưu trực tiếp vào cơ sở dữ liệu nội bộ.</div>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <a class="brand" href="/">Stay<em>Book</em></a>
+  <span>© 2026 StayBook · Đồ án demo</span>
+</footer>
+
+<script src="/static/js/hotel.js?v=2"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const params = new URLSearchParams(window.location.search);
+  const cityParam = params.get('city');
+  const checkIn = params.get('check_in');
+  const adults = params.get('adults');
+
+  if (cityParam) {
+    const cityInput = document.getElementById('cityCode');
+    if (cityInput) cityInput.value = cityParam;
+  }
+  if (checkIn) {
+    const ciInput = document.getElementById('checkInDate');
+    if (ciInput) ciInput.value = checkIn;
+  }
+  if (adults) {
+    const adInput = document.getElementById('adults');
+    if (adInput) adInput.value = adults;
+  }
+
+  if (cityParam && typeof loadHotels === 'function') {
+    setTimeout(loadHotels, 80);
+  }
+});
+</script>
+
 </body>
 </html>
