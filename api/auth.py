@@ -38,10 +38,14 @@ def register(data: RegisterRequest):
                                                  "Active"))
         new_user = curs.fetchone()
         conn.commit()
-        curs.execute("select u.UserId,u.FullName,u.Email,u.Phone,u.CitizenId,u.Address,u.AvatarUrl,u.Status,r.RoleName " \
-                    "from Users u " \
-                    "join Roles r ON u.UserId = r.RoleId " \
-                    "where UserId = ? ",(new_user.UserId,))
+        curs.execute(
+                    "select u.UserId, u.FullName, u.Email, u.Phone, u.CitizenId, "
+                    "u.Address, u.AvatarUrl, u.Status, r.RoleName "
+                    "from Users u "
+                    "join Roles r ON u.RoleId = r.RoleId "
+                    "where u.UserId = ? ",
+                    (new_user.UserId,)
+)
         row = curs.fetchone()
         token = create_access_token({"user_id":row.UserId, "email":row.Email,"role_name":row.RoleName})
         return {
