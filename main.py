@@ -44,6 +44,15 @@ def home(request: Request):
         context={}
     )
 
+# ===== Route regis / login UI
+@app.get("/auth-page")
+def auth_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="auth.html",
+        context={}
+    )
+
 # ===== HOTEL DETAIL PAGE (UI) =====
 @app.get("/hotels/{hotel_id}")
 def hotel_detail_page(
@@ -61,3 +70,4 @@ def hotel_detail_page(
             "adults": adults,
         },
     )
+

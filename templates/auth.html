@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng ký / Đăng nhập</title>
+    <link rel="stylesheet" href="/static/css/auth.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Trang test Auth</h1>
+        <p class="sub-text">Test local register/login và Google register/login trên cùng một trang.</p>
+
+        <div class="top-config card">
+            <h2>Cấu hình Google</h2>
+
+            <div class="form-group">
+                <label>Google Client ID</label>
+                <input
+                    type="text"
+                    id="googleClientId"
+                    placeholder="Nhập Google Client ID"
+                >
+            </div>
+
+            <div class="action-row">
+                <button id="saveGoogleConfigBtn" type="button">Lưu Google Client ID</button>
+                <button id="reloadGoogleBtn" type="button" class="secondary-btn">Nạp nút Google</button>
+            </div>
+
+            <p id="configMessage" class="message"></p>
+        </div>
+
+        <div class="auth-wrapper">
+            <div class="card">
+                <h2>Đăng ký local</h2>
+
+                <form id="registerForm">
+                    <div class="form-group">
+                        <label>Họ tên</label>
+                        <input type="text" id="registerFullName" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="registerEmail" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Số điện thoại</label>
+                        <input type="text" id="registerPhone">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Mật khẩu</label>
+                        <input type="password" id="registerPassword" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>CCCD</label>
+                        <input type="text" id="registerCitizenId">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Địa chỉ</label>
+                        <input type="text" id="registerAddress">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Avatar URL</label>
+                        <input type="text" id="registerAvatarUrl">
+                    </div>
+
+                    <button type="submit">Đăng ký local</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2>Đăng nhập local</h2>
+
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="loginEmail" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Mật khẩu</label>
+                        <input type="password" id="loginPassword" required>
+                    </div>
+
+                    <button type="submit">Đăng nhập local</button>
+                </form>
+
+                <hr>
+
+                <h2>Đăng nhập / đăng ký Google</h2>
+                <div id="googleArea">
+                    <p class="sub-text">Nhập Google Client ID rồi bấm "Nạp nút Google".</p>
+                    <div id="googleButtonWrap"></div>
+                </div>
+
+                <div class="action-group">
+                    <button id="sendGoogleCredentialBtn" class="secondary-btn" type="button">
+                        Gửi lại credential lên backend
+                    </button>
+                    <button id="btnMe" class="secondary-btn" type="button">
+                        Lấy thông tin /auth/me
+                    </button>
+                    <button id="btnLogout" class="danger-btn" type="button">
+                        Đăng xuất
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="result-card">
+            <h2>Kết quả</h2>
+
+            <div class="result-section">
+                <label>Google credential</label>
+                <textarea id="credentialBox" readonly placeholder="Credential từ Google sẽ hiện ở đây..."></textarea>
+            </div>
+
+            <div class="result-section">
+                <label>Access Token</label>
+                <textarea id="tokenBox" readonly placeholder="Access token sẽ hiện ở đây..."></textarea>
+            </div>
+
+            <div class="result-section">
+                <label>Response</label>
+                <pre id="resultBox">Chưa có dữ liệu...</pre>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/auth.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+</body>
+</html>
