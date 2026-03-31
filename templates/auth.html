@@ -1,140 +1,318 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đăng ký / Đăng nhập</title>
-    <link rel="stylesheet" href="/static/css/auth.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StayBook – Khám phá điểm đến</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/css/auth.css" />
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
-    <div class="container">
-        <h1>Trang test Auth</h1>
-        <p class="sub-text">Test local register/login và Google register/login trên cùng một trang.</p>
 
-        <div class="top-config card">
-            <h2>Cấu hình Google</h2>
+  <header class="topbar">
+    <a class="brand" href="/">Stay<em>Book</em></a>
 
-            <div class="form-group">
-                <label>Google Client ID</label>
-                <input
-                    type="text"
-                    id="googleClientId"
-                    placeholder="Nhập Google Client ID"
-                >
-            </div>
+    <nav class="topnav">
+      <a href="/hotels">Khách sạn</a>
+      <a href="#">Chuyến đi của tôi</a>
+      <a href="#">Hỗ trợ</a>
+    </nav>
 
-            <div class="action-row">
-                <button id="saveGoogleConfigBtn" type="button">Lưu Google Client ID</button>
-                <button id="reloadGoogleBtn" type="button" class="secondary-btn">Nạp nút Google</button>
-            </div>
+    <div class="topbar-actions">
+      <button class="topbar-login" id="openLoginBtn">Đăng nhập</button>
+      <button class="topbar-cta" id="openRegisterBtn">Đăng kí</button>
+    </div>
+  </header>
 
-            <p id="configMessage" class="message"></p>
-        </div>
-
-        <div class="auth-wrapper">
-            <div class="card">
-                <h2>Đăng ký local</h2>
-
-                <form id="registerForm">
-                    <div class="form-group">
-                        <label>Họ tên</label>
-                        <input type="text" id="registerFullName" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Email</label>
-                        <input type="email" id="registerEmail" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Số điện thoại</label>
-                        <input type="text" id="registerPhone">
-                    </div>
-
-                    <div class="form-group">
-                        <label>Mật khẩu</label>
-                        <input type="password" id="registerPassword" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label>CCCD</label>
-                        <input type="text" id="registerCitizenId">
-                    </div>
-
-                    <div class="form-group">
-                        <label>Địa chỉ</label>
-                        <input type="text" id="registerAddress">
-                    </div>
-
-                    <div class="form-group">
-                        <label>Avatar URL</label>
-                        <input type="text" id="registerAvatarUrl">
-                    </div>
-
-                    <button type="submit">Đăng ký local</button>
-                </form>
-            </div>
-
-            <div class="card">
-                <h2>Đăng nhập local</h2>
-
-                <form id="loginForm">
-                    <div class="form-group">
-                        <label>Email</label>
-                        <input type="email" id="loginEmail" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Mật khẩu</label>
-                        <input type="password" id="loginPassword" required>
-                    </div>
-
-                    <button type="submit">Đăng nhập local</button>
-                </form>
-
-                <hr>
-
-                <h2>Đăng nhập / đăng ký Google</h2>
-                <div id="googleArea">
-                    <p class="sub-text">Nhập Google Client ID rồi bấm "Nạp nút Google".</p>
-                    <div id="googleButtonWrap"></div>
-                </div>
-
-                <div class="action-group">
-                    <button id="sendGoogleCredentialBtn" class="secondary-btn" type="button">
-                        Gửi lại credential lên backend
-                    </button>
-                    <button id="btnMe" class="secondary-btn" type="button">
-                        Lấy thông tin /auth/me
-                    </button>
-                    <button id="btnLogout" class="danger-btn" type="button">
-                        Đăng xuất
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <div class="result-card">
-            <h2>Kết quả</h2>
-
-            <div class="result-section">
-                <label>Google credential</label>
-                <textarea id="credentialBox" readonly placeholder="Credential từ Google sẽ hiện ở đây..."></textarea>
-            </div>
-
-            <div class="result-section">
-                <label>Access Token</label>
-                <textarea id="tokenBox" readonly placeholder="Access token sẽ hiện ở đây..."></textarea>
-            </div>
-
-            <div class="result-section">
-                <label>Response</label>
-                <pre id="resultBox">Chưa có dữ liệu...</pre>
-            </div>
-        </div>
+  <section class="hero">
+    <div class="hero-bg">
+      <img
+        class="hero-bg-img"
+        src="https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?q=80&w=2000&auto=format&fit=crop"
+        alt="Hero background"
+      />
     </div>
 
-    <script src="/static/js/auth.js"></script>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <div class="hero-vignette"></div>
+
+    <div class="hero-content">
+      <!-- HOME PANEL -->
+      <div class="center-panel home-panel active" id="homePanel">
+        <span class="hero-eyebrow">Nền tảng đặt phòng thông minh</span>
+        <h1 class="hero-title">Tìm <em>khách sạn</em><br />hoàn hảo của bạn</h1>
+        <p class="hero-sub">
+          Khám phá hàng nghìn lựa chọn tại mọi điểm đến — từ resort 5 sao đến boutique hotel độc đáo.
+        </p>
+      </div>
+
+      <!-- LOGIN PANEL -->
+      <div class="center-panel login-panel" id="loginPanel">
+        <div class="login-card">
+          <div class="login-card-head">
+            <p class="login-kicker">Chào mừng trở lại</p>
+            <h2>Đăng nhập tài khoản</h2>
+            <p>
+              Đăng nhập để xem chuyến đi, lịch sử đặt phòng và ưu đãi dành riêng cho bạn.
+            </p>
+          </div>
+
+          <form class="login-form" id="loginForm">
+            <div id="g_id_onload"
+                data-client_id="{{ google_client_id }}"
+                data-callback="handleGoogleCredential">
+            </div>
+
+            <div class="g_id_signin"
+                data-type="standard"
+                data-size="large"
+                data-theme="outline"
+                data-text="continue_with"
+                data-shape="pill">
+            </div>
+
+            <div class="login-divider">
+              <span>hoặc</span>
+            </div>
+
+            <div class="login-field">
+              <label for="loginEmail">Email</label>
+              <input id="loginEmail" type="email" placeholder="Nhập email của bạn" required />
+            </div>
+
+            <div class="login-field">
+              <label for="loginPassword">Mật khẩu</label>
+              <input id="loginPassword" type="password" placeholder="Nhập mật khẩu" required />
+            </div>
+
+            <button type="submit" class="login-submit">Đăng nhập</button>
+            <button type="button" class="login-back" id="backHomeBtn">← Quay lại trang chủ</button>
+          </form>
+        </div>
+      </div>
+
+
+      <!-- REGIS PANEL -->
+      <div class="center-panel register-panel" id="registerPanel">
+        <div class="login-card">
+          <div class="login-card-head">
+            <p class="login-kicker">Tạo tài khoản mới</p>
+            <h2>Đăng kí tài khoản</h2>
+            <p>
+              Điền thông tin cơ bản để tạo tài khoản người dùng mới.
+            </p>
+          </div>
+
+          <form class="login-form" id="registerForm">
+            <div class="login-field">
+              <label for="registerFullName">Họ và tên</label>
+              <input id="registerFullName" type="text" placeholder="Nhập họ và tên" required />
+            </div>
+
+            <div class="login-field">
+              <label for="registerEmail">Email</label>
+              <input id="registerEmail" type="email" placeholder="Nhập email" required />
+            </div>
+
+            <div class="login-field">
+              <label for="registerPassword">Mật khẩu</label>
+              <input id="registerPassword" type="password" placeholder="Nhập mật khẩu" required />
+            </div>
+
+            <div class="login-field">
+              <label for="registerPhone">Số điện thoại</label>
+              <input id="registerPhone" type="text" placeholder="Nhập số điện thoại" />
+            </div>
+
+            <div class="login-field">
+              <label for="registerCitizenId">CCCD</label>
+              <input id="registerCitizenId" type="text" placeholder="Nhập CCCD (không bắt buộc)" />
+            </div>
+
+            <div class="login-field">
+              <label for="registerAddress">Địa chỉ</label>
+              <input id="registerAddress" type="text" placeholder="Nhập địa chỉ (không bắt buộc)" />
+            </div>
+
+            <div class="login-field">
+              <label for="registerAvatarUrl">Avatar URL</label>
+              <input id="registerAvatarUrl" type="text" placeholder="Nhập link ảnh đại diện (không bắt buộc)" />
+            </div>
+
+            <button type="submit" class="login-submit">Đăng kí</button>
+            <button type="button" class="login-back" id="backFromRegisterBtn">← Quay lại trang chủ</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="search-bar-wrap" id="searchBarWrap">
+      <div class="search-bar">
+        <div class="sb-field">
+          <span class="sb-label">🏙 Điểm đến</span>
+          <input id="cityCode" type="text" value="HAN" placeholder="City code hoặc tên thành phố" />
+        </div>
+
+        <div class="sb-field">
+          <span class="sb-label">📅 Check-in</span>
+          <input id="checkInDate" type="date" />
+        </div>
+
+        <div class="sb-field">
+          <span class="sb-label">👤 Người lớn</span>
+          <select id="adults">
+            <option value="1">1 người</option>
+            <option value="2" selected>2 người</option>
+            <option value="3">3 người</option>
+            <option value="4">4 người</option>
+            <option value="5">5 người</option>
+          </select>
+        </div>
+
+        <div class="sb-field">
+          <span class="sb-label">🛏 Phòng</span>
+          <select id="rooms">
+            <option value="1" selected>1 phòng</option>
+            <option value="2">2 phòng</option>
+            <option value="3">3 phòng</option>
+          </select>
+        </div>
+
+        <button class="sb-search-btn" onclick="goSearch()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="m21 21-4.35-4.35"></path>
+          </svg>
+          Tìm kiếm
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-wrap">
+    <p class="section-label">Điểm đến nổi bật</p>
+    <h2 class="section-heading">Việt Nam & <em>Thế giới</em></h2>
+
+    <div class="dest-grid" id="destGrid">
+      <div class="dest-card" data-city="SGN">
+        <img
+          class="dest-img"
+          src="https://images.unsplash.com/photo-1583417319070-4a69db38a482?q=80&w=900&auto=format&fit=crop"
+          alt="Hồ Chí Minh"
+          loading="lazy"
+        />
+        <div class="dest-overlay"></div>
+        <div class="dest-badge">🔥 Hot</div>
+        <div class="dest-body">
+          <div class="dest-city">Hồ Chí Minh</div>
+          <div class="dest-count">15,546 chỗ nghỉ</div>
+          <span class="dest-cta">Khám phá →</span>
+        </div>
+      </div>
+
+      <div class="dest-card" data-city="DAD">
+        <img
+          class="dest-img"
+          src="https://images.unsplash.com/photo-1528127269322-539801943592?q=80&w=900&auto=format&fit=crop"
+          alt="Đà Nẵng"
+          loading="lazy"
+        />
+        <div class="dest-overlay"></div>
+        <div class="dest-body">
+          <div class="dest-city">Đà Nẵng</div>
+          <div class="dest-count">5,534 chỗ nghỉ</div>
+          <span class="dest-cta">Khám phá →</span>
+        </div>
+      </div>
+
+      <div class="dest-card" data-city="HAN">
+        <img
+          class="dest-img"
+          src="https://images.unsplash.com/photo-1555921015-5532091f6026?q=80&w=900&auto=format&fit=crop"
+          alt="Hà Nội"
+          loading="lazy"
+        />
+        <div class="dest-overlay"></div>
+        <div class="dest-badge">🏛 Thủ đô</div>
+        <div class="dest-body">
+          <div class="dest-city">Hà Nội</div>
+          <div class="dest-count">10,744 chỗ nghỉ</div>
+          <span class="dest-cta">Khám phá →</span>
+        </div>
+      </div>
+
+      <div class="dest-card" data-city="NHA">
+        <img
+          class="dest-img"
+          src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=900&auto=format&fit=crop"
+          alt="Nha Trang"
+          loading="lazy"
+        />
+        <div class="dest-overlay"></div>
+        <div class="dest-body">
+          <div class="dest-city">Nha Trang</div>
+          <div class="dest-count">4,098 chỗ nghỉ</div>
+          <span class="dest-cta">Khám phá →</span>
+        </div>
+      </div>
+
+      <div class="dest-card" data-city="DLI">
+        <img
+          class="dest-img"
+          src="https://images.unsplash.com/photo-1511497584788-876760111969?q=80&w=900&auto=format&fit=crop"
+          alt="Đà Lạt"
+          loading="lazy"
+        />
+        <div class="dest-overlay"></div>
+        <div class="dest-body">
+          <div class="dest-city">Đà Lạt</div>
+          <div class="dest-count">5,165 chỗ nghỉ</div>
+          <span class="dest-cta">Khám phá →</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <section class="why-section">
+    <div class="why-left">
+      <p class="section-label section-label-dark">Vì sao chọn StayBook</p>
+      <h2 class="section-heading white-heading">Đặt phòng<br /><em>thông minh</em> hơn</h2>
+      <p>
+        Chúng tôi kết hợp dữ liệu thực từ Geoapify và thời tiết thực tế để giúp bạn ra quyết định tốt nhất.
+      </p>
+    </div>
+
+    <div class="why-cards">
+      <div class="why-card">
+        <div class="why-icon">🌤</div>
+        <div class="why-title">Dự báo thời tiết</div>
+        <div class="why-desc">Xem ngay thời tiết 3 ngày tại điểm đến ngay khi tìm kiếm.</div>
+      </div>
+      <div class="why-card">
+        <div class="why-icon">📍</div>
+        <div class="why-title">Bản đồ tích hợp</div>
+        <div class="why-desc">Xem vị trí từng khách sạn trực tiếp trên bản đồ Mapbox.</div>
+      </div>
+      <div class="why-card">
+        <div class="why-icon">⚡</div>
+        <div class="why-title">Tìm kiếm nhanh</div>
+        <div class="why-desc">Kết quả hiển thị tức thì với bộ lọc sao, giá, tiện nghi.</div>
+      </div>
+      <div class="why-card">
+        <div class="why-icon">🔒</div>
+        <div class="why-title">Lưu trữ an toàn</div>
+        <div class="why-desc">Lịch sử đặt phòng được lưu trực tiếp vào cơ sở dữ liệu nội bộ.</div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <a class="brand" href="/">Stay<em>Book</em></a>
+    <span>© 2026 StayBook · Đồ án demo</span>
+  </footer>
+
+  <script src="/static/js/auth.js"></script>
 </body>
 </html>

@@ -13,7 +13,7 @@ load_dotenv()
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
-GET_GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 
 # Get role id bằng role name
 def get_role_id_by_name(curs, role_name:str):

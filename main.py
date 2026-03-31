@@ -1,3 +1,5 @@
+import os
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -45,14 +47,16 @@ def home(request: Request):
     )
 
 # ===== Route regis / login UI
+load_dotenv()
 @app.get("/auth-page")
 def auth_page(request: Request):
     return templates.TemplateResponse(
         request=request,
         name="auth.html",
-        context={}
+        context={
+            "google_client_id": os.getenv("GOOGLE_CLIENT_ID")
+        }
     )
-
 # ===== HOTEL DETAIL PAGE (UI) =====
 @app.get("/hotels/{hotel_id}")
 def hotel_detail_page(

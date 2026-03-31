@@ -1,255 +1,212 @@
 const API_BASE_URL = window.location.origin;
 
-const registerForm = document.getElementById("registerForm");
+const homePanel = document.getElementById("homePanel");
+const loginPanel = document.getElementById("loginPanel");
+const openLoginBtn = document.getElementById("openLoginBtn");
+const backHomeBtn = document.getElementById("backHomeBtn");
 const loginForm = document.getElementById("loginForm");
+const cityCodeInput = document.getElementById("cityCode");
+const checkInDateInput = document.getElementById("checkInDate");
+const adultsSelect = document.getElementById("adults");
+const destGrid = document.getElementById("destGrid");
+const googleLoginBtn = document.getElementById("googleLoginBtn");
+const registerPanel = document.getElementById("registerPanel");
+const openRegisterBtn = document.getElementById("openRegisterBtn");
+const backFromRegisterBtn = document.getElementById("backFromRegisterBtn");
+const registerForm = document.getElementById("registerForm");
 
-const btnMe = document.getElementById("btnMe");
-const btnLogout = document.getElementById("btnLogout");
-const sendGoogleCredentialBtn = document.getElementById("sendGoogleCredentialBtn");
 
-const tokenBox = document.getElementById("tokenBox");
-const credentialBox = document.getElementById("credentialBox");
-const resultBox = document.getElementById("resultBox");
+(function setDefaultCheckInDate() {
+  const today = new Date().toISOString().slice(0, 10);
+  if (checkInDateInput) {
+    checkInDateInput.value = today;
+  }
+})();
 
-const googleClientIdInput = document.getElementById("googleClientId");
-const saveGoogleConfigBtn = document.getElementById("saveGoogleConfigBtn");
-const reloadGoogleBtn = document.getElementById("reloadGoogleBtn");
-const configMessage = document.getElementById("configMessage");
-const googleButtonWrap = document.getElementById("googleButtonWrap");
 
-function setResult(data) {
-    resultBox.textContent = JSON.stringify(data, null, 2);
+
+window.handleGoogleCredential = async function (response) {
+  const credential = response.credential;
+
+  try {
+    const res = await fetch("http://127.0.0.1:8000/auth/google", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        credential: credential
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.detail || "Google login thất bại");
+      return;
+    }
+
+    localStorage.setItem("access_token", data.access_token);
+    localStorage.setItem("current_user", JSON.stringify(data.user));
+
+    alert("Đăng nhập Google thành công!");
+    window.location.href = "/";
+  } catch (err) {
+    console.error(err);
+    alert("Lỗi kết nối server");
+  }
+};
+
+function handleGoogleLogin() {
+  window.location.href = `${API_BASE_URL}/auth/google`;
 }
 
-function setError(error) {
-    resultBox.textContent = typeof error === "string"
-        ? error
-        : JSON.stringify(error, null, 2);
+function showLoginPanel() {
+  document.body.classList.add("login-open");
+  homePanel?.classList.remove("active");
+  loginPanel?.classList.add("active");
 }
 
-function saveToken(token) {
-    localStorage.setItem("access_token", token);
-    tokenBox.value = token;
+function showRegisterPanel() {
+  document.body.classList.add("login-open");
+  homePanel?.classList.remove("active");
+  loginPanel?.classList.remove("active");
+  registerPanel?.classList.add("active");
 }
 
-function getToken() {
-    return localStorage.getItem("access_token") || "";
+function showHomePanel() {
+  document.body.classList.remove("login-open");
+  loginPanel?.classList.remove("active");
+  registerPanel?.classList.remove("active");
+  homePanel?.classList.add("active");
 }
 
-function loadToken() {
-    tokenBox.value = getToken();
+
+function goSearch(cityOverride) {
+  const city = cityOverride || cityCodeInput?.value?.trim() || "HAN";
+  const checkIn = checkInDateInput?.value || new Date().toISOString().slice(0, 10);
+  const adults = adultsSelect?.value || "2";
+
+  if (!city) {
+    alert("Vui lòng nhập điểm đến.");
+    return;
+  }
+
+  window.location.href = `/hotels?city=${encodeURIComponent(city)}&check_in=${encodeURIComponent(checkIn)}&adults=${encodeURIComponent(adults)}`;
 }
 
-function clearToken() {
-    localStorage.removeItem("access_token");
-    tokenBox.value = "";
-}
+async function handleLogin(event) {
+  event.preventDefault();
 
-function saveCredential(credential) {
-    localStorage.setItem("google_credential", credential);
-    credentialBox.value = credential;
-}
+  const email = document.getElementById("loginEmail")?.value.trim();
+  const password = document.getElementById("loginPassword")?.value;
 
-function getCredential() {
-    return localStorage.getItem("google_credential") || "";
-}
+  if (!email || !password) {
+    alert("Vui lòng nhập đầy đủ email và mật khẩu.");
+    return;
+  }
 
-function loadCredential() {
-    credentialBox.value = getCredential();
-}
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        email,
+        password
+      })
+    });
 
-function clearCredential() {
-    localStorage.removeItem("google_credential");
-    credentialBox.value = "";
-}
-
-function saveGoogleClientId() {
-    const value = googleClientIdInput.value.trim();
-    localStorage.setItem("google_client_id", value);
-    configMessage.textContent = "Đã lưu Google Client ID.";
-}
-
-function loadGoogleClientId() {
-    googleClientIdInput.value = localStorage.getItem("google_client_id") || "";
-}
-
-async function handleAuthResponse(response) {
     const data = await response.json();
-    setResult(data);
 
     if (!response.ok) {
-        return null;
+      alert(data.detail || "Đăng nhập thất bại.");
+      return;
     }
 
-    if (data.access_token) {
-        saveToken(data.access_token);
-    }
+    localStorage.setItem("access_token", data.access_token);
+    localStorage.setItem("current_user", JSON.stringify(data.user));
 
-    return data;
+    alert("Đăng nhập thành công!");
+    window.location.reload();
+  } catch (error) {
+    console.error("Login error:", error);
+    alert("Không thể kết nối tới server.");
+  }
 }
 
-registerForm.addEventListener("submit", async function (e) {
-    e.preventDefault();
 
-    const payload = {
-        full_name: document.getElementById("registerFullName").value.trim(),
-        email: document.getElementById("registerEmail").value.trim(),
-        phone: document.getElementById("registerPhone").value.trim() || null,
-        password: document.getElementById("registerPassword").value.trim(),
-        citizen_id: document.getElementById("registerCitizenId").value.trim() || null,
-        address: document.getElementById("registerAddress").value.trim() || null,
-        avatar_url: document.getElementById("registerAvatarUrl").value.trim() || null
-    };
+openLoginBtn?.addEventListener("click", showLoginPanel);
+backHomeBtn?.addEventListener("click", showHomePanel);
+loginForm?.addEventListener("submit", handleLogin);
 
-    try {
-        const response = await fetch(`${API_BASE_URL}/auth/register`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(payload)
-        });
+async function handleRegister(event) {
+  event.preventDefault();
 
-        await handleAuthResponse(response);
-    } catch (error) {
-        setError(error.message);
-    }
-});
+  const payload = {
+    full_name: document.getElementById("registerFullName")?.value.trim(),
+    email: document.getElementById("registerEmail")?.value.trim(),
+    password: document.getElementById("registerPassword")?.value,
+    phone: document.getElementById("registerPhone")?.value.trim() || null,
+    citizen_id: document.getElementById("registerCitizenId")?.value.trim() || null,
+    address: document.getElementById("registerAddress")?.value.trim() || null,
+    avatar_url: document.getElementById("registerAvatarUrl")?.value.trim() || null
+  };
 
-loginForm.addEventListener("submit", async function (e) {
-    e.preventDefault();
+  if (!payload.full_name || !payload.email || !payload.password) {
+    alert("Vui lòng nhập họ tên, email và mật khẩu.");
+    return;
+  }
 
-    const payload = {
-        email: document.getElementById("loginEmail").value.trim(),
-        password: document.getElementById("loginPassword").value.trim()
-    };
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/auth/login`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(payload)
-        });
-
-        await handleAuthResponse(response);
-    } catch (error) {
-        setError(error.message);
-    }
-});
-
-btnMe.addEventListener("click", async function () {
-    const token = getToken();
-
-    if (!token) {
-        setError("Chưa có access token. Hãy đăng nhập trước.");
-        return;
-    }
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/auth/me`, {
-            method: "GET",
-            headers: {
-                "Authorization": `Bearer ${token}`
-            }
-        });
-
-        const data = await response.json();
-        setResult(data);
-    } catch (error) {
-        setError(error.message);
-    }
-});
-
-btnLogout.addEventListener("click", function () {
-    clearToken();
-    clearCredential();
-    setResult({ message: "Đã đăng xuất ở frontend" });
-});
-
-async function sendGoogleCredentialToBackend() {
-    const credential = credentialBox.value.trim();
-
-    if (!credential) {
-        setError("Chưa có Google credential.");
-        return;
-    }
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/auth/google`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ credential: credential })
-        });
-
-        await handleAuthResponse(response);
-    } catch (error) {
-        setError(error.message);
-    }
-}
-
-sendGoogleCredentialBtn.addEventListener("click", sendGoogleCredentialToBackend);
-
-function onGoogleSuccess(response) {
-    const credential = response.credential;
-    saveCredential(credential);
-    sendGoogleCredentialToBackend();
-}
-
-function renderGoogleButton() {
-    const clientId = googleClientIdInput.value.trim();
-
-    googleButtonWrap.innerHTML = "";
-
-    if (!clientId) {
-        configMessage.textContent = "Bạn chưa nhập Google Client ID.";
-        return;
-    }
-
-    if (!window.google || !google.accounts || !google.accounts.id) {
-        configMessage.textContent = "Google script chưa tải xong. Đợi vài giây rồi thử lại.";
-        return;
-    }
-
-    google.accounts.id.initialize({
-        client_id: clientId,
-        callback: onGoogleSuccess,
-        auto_select: false,
-        cancel_on_tap_outside: true
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
     });
 
-    const buttonDiv = document.createElement("div");
-    googleButtonWrap.appendChild(buttonDiv);
+    const data = await response.json();
 
-    google.accounts.id.renderButton(buttonDiv, {
-        theme: "outline",
-        size: "large",
-        text: "signin_with",
-        shape: "rectangular",
-        width: 300
-    });
+    if (!response.ok) {
+      alert(data.detail || "Đăng kí thất bại.");
+      return;
+    }
 
-    configMessage.textContent = "Đã nạp nút Google.";
+    localStorage.setItem("access_token", data.access_token);
+    localStorage.setItem("current_user", JSON.stringify(data.user));
+
+    alert("Đăng kí thành công!");
+    window.location.href = "/";
+  } catch (error) {
+    console.error("Register error:", error);
+    alert("Không thể kết nối tới server.");
+  }
 }
 
-saveGoogleConfigBtn.addEventListener("click", saveGoogleClientId);
+openRegisterBtn?.addEventListener("click", showRegisterPanel);
+backFromRegisterBtn?.addEventListener("click", showHomePanel);
+registerForm?.addEventListener("submit", handleRegister);
 
-reloadGoogleBtn.addEventListener("click", function () {
-    saveGoogleClientId();
-    renderGoogleButton();
+
+cityCodeInput?.addEventListener("keydown", function (event) {
+  if (event.key === "Enter") {
+    goSearch();
+  }
 });
 
-window.addEventListener("load", function () {
-    loadToken();
-    loadCredential();
-    loadGoogleClientId();
+destGrid?.addEventListener("click", function (event) {
+  const card = event.target.closest(".dest-card[data-city]");
+  if (!card) return;
 
-    setTimeout(() => {
-        if (googleClientIdInput.value.trim()) {
-            renderGoogleButton();
-        }
-    }, 800);
+  const city = card.dataset.city;
+  const checkIn = new Date().toISOString().slice(0, 10);
+  const adults = adultsSelect?.value || "2";
+
+  window.location.href = `/hotels?city=${encodeURIComponent(city)}&check_in=${encodeURIComponent(checkIn)}&adults=${encodeURIComponent(adults)}`;
 });
+
+
+googleLoginBtn?.addEventListener("click", handleGoogleLogin);
