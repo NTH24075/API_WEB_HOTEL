@@ -1,3 +1,5 @@
+import os
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -5,6 +7,8 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 # ===== IMPORT ROUTERS (controller) =====
 from api.hotels import router as hotels_router
+
+load_dotenv()
 from api.admin_hotels import router as admin_hotels_router
 from api.auth import router as auth_router
 from api.admin_users import router as admin_users_router
@@ -28,6 +32,13 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
+app.include_router(hotels_router)
+
+MAPBOX_TOKEN = os.getenv("MAPBOX_TOKEN", "")
+
+@app.get("/hotels")
+def hotels_page(request: Request):
+    return templates.TemplateResponse(request=request, name="index.html", context={})
 # ===== REGISTER ROUTERS =====
 app.include_router(hotels_router)          # public hotel API (Geoapify)
 app.include_router(auth_router)            # login/register
@@ -41,8 +52,10 @@ app.include_router(review_router)
 def home(request: Request):
     return templates.TemplateResponse(
         request=request,
-        name="index.html",
-        context={}
+        name="home.html",
+        context={
+            "mapbox_token": MAPBOX_TOKEN,
+        }
     )
 
 # ===== HOTEL DETAIL PAGE (UI) =====
@@ -60,5 +73,6 @@ def hotel_detail_page(
             "hotel_id": hotel_id,
             "check_in": check_in,
             "adults": adults,
+            "mapbox_token": MAPBOX_TOKEN,
         },
     )

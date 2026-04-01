@@ -4,10 +4,10 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from core.database import get_conn
 import traceback
-
 from services.amadeus_service import (
     get_hotel_detail_payload,
     search_hotels_by_city,
+    get_weather_forecast_3days,
 )
 
 class FavoritePayload(BaseModel):

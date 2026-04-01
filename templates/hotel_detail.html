@@ -4,101 +4,179 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Chi tiết khách sạn</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/style.css" />
+
+    <!-- Mapbox GL JS -->
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css" rel="stylesheet" />
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js"></script>
+
+    <style>
+      /* ── Map Card ─────────────────────────────────────── */
+      .map-card {
+        background: var(--white);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        overflow: hidden;
+        box-shadow: var(--card-shadow);
+        margin-bottom: 14px;
+      }
+      .map-card-header {
+        display: flex; align-items: center; gap: 8px;
+        padding: 13px 16px;
+        font-size: 12px; font-weight: 700;
+        color: var(--text); text-transform: uppercase; letter-spacing: .6px;
+        border-bottom: 1px solid var(--border);
+      }
+      .map-card-header svg { color: var(--primary); flex-shrink: 0; }
+      #hotelMap { width: 100%; height: 210px; display: none; }
+      .map-placeholder {
+        width: 100%; height: 210px;
+        background: linear-gradient(135deg, #dbeafe, #eff6ff);
+        display: flex; align-items: center; justify-content: center;
+      }
+      .map-card-footer {
+        display: none;
+        padding: 9px 16px;
+        font-size: 12px; color: var(--text-muted);
+        align-items: center; gap: 6px;
+        border-top: 1px solid var(--border);
+        background: #fafbff;
+      }
+      .map-card-footer a {
+        color: var(--primary); font-weight: 600;
+        margin-left: auto; font-size: 12px;
+      }
+      .map-card-footer a:hover { text-decoration: underline; }
+    </style>
 </head>
 <body
     data-page="hotel-detail"
     data-hotel-id="{{ hotel_id }}"
     data-check-in="{{ check_in }}"
     data-adults="{{ adults }}"
+    data-mapbox-token="{{ mapbox_token }}"
 >
-    <header class="topbar">
-        <div class="container topbar-inner">
-            <a class="brand" href="/">StayBook</a>
-            <nav class="topnav">
-                <a href="/">Khách sạn</a>
-                <a href="#">Yêu thích</a>
-                <a href="#">Booking test</a>
-            </nav>
+<header class="topbar">
+    <div class="container topbar-inner">
+        <a class="brand" href="/">Stay<span>Book</span></a>
+        <nav class="topnav">
+            <a href="/">Khách sạn</a>
+            <a href="#">Yêu thích</a>
+            <a href="#">Đăng nhập</a>
+        </nav>
+    </div>
+</header>
+
+<main class="page">
+    <section class="container">
+        <div class="breadcrumb">
+            <a href="/">Trang chủ</a>
+            <span class="bc-sep">›</span>
+            <span>Chi tiết khách sạn</span>
         </div>
-    </header>
 
-    <main class="page">
-        <section class="container">
-            <div class="breadcrumb">
-                <a href="/">Trang chủ</a>
-                <span>/</span>
-                <span>Chi tiết khách sạn</span>
-            </div>
+        <div id="detailLoading" class="loading-card">
+            <div class="spinner"></div>
+            <span>Đang tải chi tiết khách sạn…</span>
+        </div>
 
-            <div id="detailLoading" class="loading-card">Đang tải chi tiết khách sạn...</div>
+        <div id="hotelDetail" class="hotel-detail hidden">
 
-            <div id="hotelDetail" class="hotel-detail hidden">
-                <section class="detail-header">
-                    <div class="detail-main">
-                        <div class="hotel-title-row">
-                            <div>
-                                <h1 id="hotelName"></h1>
-                                <div class="hotel-meta-row">
-                                    <span id="hotelStars" class="stars"></span>
-                                    <span id="hotelAddress" class="hotel-address"></span>
-                                </div>
-                            </div>
-
-                            <div id="ratingBox" class="rating-box"></div>
-                        </div>
-
-                        <div id="gallery" class="gallery-grid"></div>
-                    </div>
-                </section>
-
-                <section class="detail-layout">
-                    <div class="detail-left">
-                        <div class="section-card">
-                            <h2>Tổng quan</h2>
-                            <p id="hotelDescription" class="muted-text"></p>
-                        </div>
-
-                        <div class="section-card">
-                            <h2>Tiện nghi nổi bật</h2>
-                            <div id="amenities" class="chips"></div>
-                        </div>
-
-                        <div class="section-card">
-                            <h2>Đánh giá tổng hợp</h2>
-                            <div id="sentiments" class="sentiment-list"></div>
-                        </div>
-
-                        <div class="section-card">
-                            <div class="section-head">
-                                <h2>Phòng và giá</h2>
-                                <div class="muted-text">Dữ liệu live/test từ Amadeus</div>
-                            </div>
-                            <div id="offers" class="offers-list"></div>
+            <section class="detail-header">
+                <div class="hotel-title-row">
+                    <div class="title-block">
+                        <h1 id="hotelName"></h1>
+                        <div class="hotel-meta-row">
+                            <span id="hotelStars" class="stars"></span>
+                            <span class="meta-dot">·</span>
+                            <span id="hotelAddress" class="hotel-address">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+                                <span id="addressText"></span>
+                            </span>
                         </div>
                     </div>
+                    <div id="ratingBox" class="rating-box"></div>
+                </div>
 
-                    <aside class="detail-right">
-                        <div class="booking-card">
-                            <div class="booking-card-top">
-                                <div class="muted-label">Giá từ</div>
-                                <div id="priceFrom" class="price-from"></div>
-                                <div id="bookingSummary" class="muted-text"></div>
-                            </div>
+                <div id="gallery" class="gallery-grid"></div>
+            </section>
 
-                            <button class="primary-btn block-btn">Đặt ngay (test)</button>
-                            <button class="ghost-btn block-btn" onclick="addFavorite('{{ hotel.hotel_id }}')">Lưu yêu thích</button>
+            <section class="detail-layout">
+                <div class="detail-left">
 
-                            <div class="side-note">
-                                Đây là trang detail demo cho đồ án. Booking và review có thể lưu test vào SQL nội bộ của bạn.
+                    <!-- Weather at destination -->
+
+                    <div class="section-card">
+                        <h2>Tổng quan</h2>
+                        <p id="hotelDescription" class="muted-text"></p>
+                    </div>
+
+                    <div class="section-card">
+                        <h2>Tiện nghi nổi bật</h2>
+                        <div id="amenities" class="chips"></div>
+                    </div>
+
+                    <div class="section-card">
+                        <h2>Đánh giá tổng hợp</h2>
+                        <div id="sentiments" class="sentiment-list"></div>
+                    </div>
+
+                    <div class="section-card">
+                        <div class="section-head">
+                            <h2>Phòng và giá</h2>
+                            <div class="muted-text">Dữ liệu từ Geoapify + Demo</div>
+                        </div>
+                        <div id="offers" class="offers-list"></div>
+                    </div>
+                </div>
+
+                <aside class="detail-right">
+                    <!-- ── Vị trí khách sạn (Mapbox) ── -->
+                    <div class="map-card">
+                        <div class="map-card-header">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+                                <circle cx="12" cy="9" r="2.5"/>
+                            </svg>
+                            Vị trí khách sạn
+                        </div>
+                        <div class="map-placeholder" id="mapPlaceholder">
+                            <div style="display:flex;flex-direction:column;align-items:center;gap:8px;color:#94a3b8;font-size:13px">
+                                <span style="font-size:28px">🗺️</span>
+                                <span>Đang tải bản đồ…</span>
                             </div>
                         </div>
-                    </aside>
-                </section>
-            </div>
-        </section>
-    </main>
+                        <div id="hotelMap"></div>
+                        <div class="map-card-footer" id="mapFooter">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+                                <circle cx="12" cy="9" r="2.5"/>
+                            </svg>
+                            <span id="mapAddressLabel"></span>
+                            <a id="mapDirectionLink" href="#" target="_blank" rel="noopener">Chỉ đường →</a>
+                        </div>
+                    </div>
 
-    <script src="/static/js/hotel.js"></script>
+                    <div class="booking-card">
+                        <div class="booking-card-top">
+                            <div class="muted-label">Giá từ</div>
+                            <div id="priceFrom" class="price-from"></div>
+                            <div id="bookingSummary" class="muted-text"></div>
+                        </div>
+                        <button class="search-btn block-btn">Đặt ngay</button>
+                        <button class="ghost-btn block-btn" onclick="addFavorite('{{ hotel.hotel_id }}')">❤ Lưu yêu thích</button>
+                        <div class="side-note">
+                            Trang demo cho đồ án. Booking có thể lưu vào SQL nội bộ.
+                        </div>
+                    </div>
+                </aside>
+            </section>
+        </div>
+    </section>
+</main>
+
+<script src="/static/js/hotel.js"></script>
 </body>
 </html>
