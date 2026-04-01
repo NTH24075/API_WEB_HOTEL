@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from datetime import datetime
 from core.database import get_conn
 from core.dependencies import get_current_user
@@ -6,11 +6,12 @@ from schemas.roomoffer_schemas import (
     CurrentUserAndRoomOfferResponse,
     CreateReviewRequest,
 )
+from datetime import datetime
+from fastapi import Depends, HTTPException
+
 
 hotel_router = APIRouter(prefix="/api/bookinghotels", tags=["Hotels"])
 
-from datetime import datetime
-from fastapi import Depends, HTTPException
 
 @hotel_router.post("/create-booking/{room_offer_id}")
 def create_booking(
@@ -35,9 +36,7 @@ def create_booking(
     cursor = db.cursor()
 
     try:
-        # ========================
         # 1. Lấy room offer
-        # ========================
         query = """
             SELECT
                 OfferId,
@@ -56,9 +55,7 @@ def create_booking(
 
         offer_id, hotel_id, capacity, price_per_night, available_qty = row
 
-        # ========================
         # 2. Validate dữ liệu
-        # ========================
         try:
             check_in = datetime.strptime(check_in_date, "%Y-%m-%d")
             check_out = datetime.strptime(check_out_date, "%Y-%m-%d")
@@ -78,21 +75,15 @@ def create_booking(
         if number_of_rooms > available_qty:
             raise HTTPException(status_code=400, detail="Không đủ số phòng")
 
-        # ========================
         # 3. Tính tiền
-        # ========================
         nights = (check_out - check_in).days
         total_amount = float(price_per_night) * number_of_rooms * nights
 
-        # ========================
         # 4. Tạo BookingCode
-        # ========================
         import uuid
         booking_code = str(uuid.uuid4())[:10]
 
-        # ========================
         # 5. Insert booking + lấy BookingId ngay sau insert
-        # ========================
         insert_query = """
             INSERT INTO Bookings (
                 UserId,
@@ -140,9 +131,7 @@ def create_booking(
 
         booking_id = int(inserted_row[0])
 
-        # ========================
         # 6. Update số phòng
-        # ========================
         update_query = """
             UPDATE RoomOffers
             SET AvailableQuantity = AvailableQuantity - ?
@@ -172,16 +161,14 @@ def create_booking(
 @hotel_router.post("/add-services/{booking_id}")
 def add_services_to_booking(
     booking_id: int,
-    service_items: list[dict],  # [{service_id: 1, quantity: 2}, ...]
+    service_items: list[dict],  # [ {"service_id": 1, "quantity": 1}, {"service_id": 2, "quantity": 1}, {"service_id": 3, "quantity": 1}]
     db=Depends(get_conn),
     current_user: dict = Depends(get_current_user)
 ):
     cursor = db.cursor()
 
     try:
-        # ========================
         # 1. Check booking tồn tại
-        # ========================
         cursor.execute("""
             SELECT TotalAmount
             FROM Bookings
@@ -196,18 +183,14 @@ def add_services_to_booking(
         total_service_cost = 0
         added_services = []
 
-        # ========================
         # 2. Validate danh sách service
-        # ========================
         if not service_items or not isinstance(service_items, list):
             raise HTTPException(
                 status_code=400,
                 detail="service_items phải là một danh sách, ví dụ: [{'service_id': 1, 'quantity': 2}]"
             )
 
-        # ========================
         # 3. Loop từng service
-        # ========================
         for index, item in enumerate(service_items, start=1):
             if not isinstance(item, dict):
                 raise HTTPException(
@@ -286,9 +269,7 @@ def add_services_to_booking(
                 "total_price": total_price
             })
 
-        # ========================
         # 4. Update lại Booking
-        # ========================
         new_total = current_total + total_service_cost
 
         cursor.execute("""
@@ -337,92 +318,167 @@ def add_services_to_booking(
         "new_total_amount": new_total
     }
 
-
-@hotel_router.post("/create-payment/{booking_id}")
-def create_payment(
+@hotel_router.delete("/delete-booking/{booking_id}")
+def delete_booking(
     booking_id: int,
-    payment_method: str = "Cash",
     db=Depends(get_conn),
     current_user: dict = Depends(get_current_user)
 ):
     cursor = db.cursor()
 
-    # ========================
-    # 1. Check booking
-    # ========================
-    cursor.execute("""
-        SELECT TotalAmount, PaymentStatus, BookingStatus
-        FROM Bookings
-        WHERE BookingId = ?
-    """, (booking_id,))
+    try:
+        user_id = current_user.get("UserId") or current_user.get("user_id")
+
+        # 1. Check booking
+        cursor.execute("""
+            SELECT UserId, OfferId, NumberOfRooms
+            FROM Bookings
+            WHERE BookingId = ?
+        """, (booking_id,))
+        
+        row = cursor.fetchone()
+
+        if not row:
+            raise HTTPException(404, "Booking không tồn tại")
+
+        booking_user_id, offer_id, number_of_rooms = row
+
+        # 2. Check quyền
+        if booking_user_id != user_id:
+            raise HTTPException(403, "Không có quyền")
+
+        # 3. Xoá BookingServices
+        cursor.execute("""
+            DELETE FROM BookingServices
+            WHERE BookingId = ?
+        """, (booking_id,))
+
+        # 4. Xoá Payments 
+        cursor.execute("""
+            DELETE FROM Payments
+            WHERE BookingId = ?
+        """, (booking_id,))
+
+        # 5. Trả lại phòng
+        cursor.execute("""
+            UPDATE RoomOffers
+            SET AvailableQuantity = AvailableQuantity + ?
+            WHERE OfferId = ?
+        """, (number_of_rooms, offer_id))
+
+        # 6. Xoá booking
+        cursor.execute("""
+            DELETE FROM Bookings
+            WHERE BookingId = ?
+        """, (booking_id,))
+
+        db.commit()
+
+        return {
+            "message": "Xoá booking thành công",
+            "booking_id": booking_id
+        }
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(500, str(e))
+    finally:
+        cursor.close()
+
+
+
+@hotel_router.post("/create-payment/{booking_id}")
+def create_payment(
+    booking_id: int,
+    payment_method: str = Query("Cash", include_in_schema=False),  
+    db=Depends(get_conn),
+    current_user: dict = Depends(get_current_user)
+):
+    cursor = db.cursor()
+
+    try:
     
-    booking = cursor.fetchone()
+        # 1. Check booking
+        # ========================
+        cursor.execute("""
+            SELECT TotalAmount, PaymentStatus, BookingStatus
+            FROM Bookings
+            WHERE BookingId = ?
+        """, (booking_id,))
+        
+        booking = cursor.fetchone()
 
-    if not booking:
+        if not booking:
+            raise HTTPException(404, "Booking không tồn tại")
+
+        total_amount, payment_status, booking_status = booking
+
+        # ========================
+        # 2. Validate trạng thái
+        # ========================
+        if booking_status == "Cancelled":
+            raise HTTPException(400, "Booking đã bị huỷ, không thể thanh toán")
+
+        if payment_status == "Paid":
+            raise HTTPException(400, "Booking đã được thanh toán")
+
+        # ========================
+        # 3. Insert Payment + lấy ID
+        # ========================
+        cursor.execute("""
+            INSERT INTO Payments (
+                BookingId,
+                Amount,
+                PaymentMethod,
+                PaymentStatus,
+                PaidAt,
+                CreatedAt
+            )
+            OUTPUT INSERTED.PaymentId
+            VALUES (?, ?, ?, ?, GETDATE(), GETDATE())
+        """, (
+            booking_id,
+            total_amount,
+            payment_method,   # luôn = "Cash"
+            "Paid"
+        ))
+
+        payment_id = int(cursor.fetchone()[0])
+
+        # ========================
+        # 4. Update Booking
+        # ========================
+        cursor.execute("""
+            UPDATE Bookings
+            SET PaymentStatus = ?, BookingStatus = ?, UpdatedAt = GETDATE()
+            WHERE BookingId = ?
+        """, (
+            "Paid",
+            "Confirmed",
+            booking_id
+        ))
+
+        db.commit()
+
+        return {
+            "message": "Thanh toán thành công",
+            "payment_id": payment_id,
+            "booking_id": booking_id,
+            "amount": total_amount,
+            "payment_method": payment_method  # luôn là Cash
+        }
+
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(500, f"Lỗi hệ thống: {str(e)}")
+    finally:
         cursor.close()
-        raise HTTPException(404, "Booking không tồn tại")
-
-    total_amount, payment_status, booking_status = booking
-
-    # ========================
-    # 2. Check đã thanh toán chưa
-    # ========================
-    if payment_status == "Paid":
-        cursor.close()
-        raise HTTPException(400, "Booking đã được thanh toán")
-
-    # ========================
-    # 3. Insert Payment
-    # ========================
-    cursor.execute("""
-        INSERT INTO Payments (
-            BookingId,
-            Amount,
-            PaymentMethod,
-            PaymentStatus,
-            PaidAt,
-            CreatedAt
-        )
-        VALUES (?, ?, ?, ?, GETDATE(), GETDATE())
-    """, (
-        booking_id,
-        total_amount,
-        payment_method,
-        "Paid"
-    ))
-
-    # ========================
-    # 4. Update Booking
-    # ========================
-    cursor.execute("""
-        UPDATE Bookings
-        SET PaymentStatus = ?, BookingStatus = ?
-        WHERE BookingId = ?
-    """, (
-        "Paid",
-        "Confirmed",
-        booking_id
-    ))
-
-    db.commit()
-
-    # lấy payment_id
-    cursor.execute("SELECT SCOPE_IDENTITY()")
-    payment_id = int(cursor.fetchone()[0])
-
-    cursor.close()
-
-    return {
-        "message": "Thanh toán thành công",
-        "payment_id": payment_id,
-        "booking_id": booking_id,
-        "amount": total_amount
-    }
 
 
-# =========================
 # Router cho Reviews
-# =========================
 review_router = APIRouter(prefix="/api/reviews", tags=["Reviews"])
 
 
@@ -518,7 +574,7 @@ def create_review(
             CreatedAt,
             Status
         )
-        VALUES (?, ?, ?, ?, ?, GETDATE(), ?)
+        VALUES (?, ?, ?, ?, ?, GETDATE(), ?)`
     """
     cursor.execute(
         insert_query,
