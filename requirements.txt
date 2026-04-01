@@ -4,3 +4,9 @@ httpx
 pyodbc
 jinja2
 python-dotenv
+pyodbc
+python-jose
+python-multipart
+pydantic
+email-validator
+requests

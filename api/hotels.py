@@ -1,4 +1,8 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query, HTTPException, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
+from core.database import get_conn
 import traceback
 from services.amadeus_service import (
     get_hotel_detail_payload,
@@ -6,7 +10,12 @@ from services.amadeus_service import (
     get_weather_forecast_3days,
 )
 
+class FavoritePayload(BaseModel):
+    user_id: int
+    hotel_id: str
+
 router = APIRouter()
+templates = Jinja2Templates(directory="templates")
 
 
 @router.get("/api/hotels")
@@ -43,102 +52,82 @@ def api_hotel_detail(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/api/weather")
-def api_weather(
-    city: str | None = Query(None),
-    city_code: str | None = Query(None),
-    lat: float | None = Query(None),
-    lon: float | None = Query(None),
-    check_in: str | None = Query(None),
-    lang: str = Query("vi"),
+@router.get("/hotels/{hotel_id}", response_class=HTMLResponse)
+def hotel_detail_page(
+    request: Request,
+    hotel_id: str,
+    check_in: str = Query("2026-04-08"),
+    adults: int = Query(2, ge=1, le=9),
 ):
     try:
-        return get_weather_forecast_3days(
-            city=city,
-            city_code=city_code,
-            lat=lat,
-            lon=lon,
+        hotel = get_hotel_detail_payload(
+            hotel_id=hotel_id,
             check_in=check_in,
-            lang=lang,
+            adults=adults,
+        )
+        return templates.TemplateResponse(
+            request=request,
+            name="hotel_detail.html",
+            context={
+                "hotel": hotel,
+                "hotel_id": hotel_id,
+                "check_in": check_in,
+                "adults": adults,
+            }
         )
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ── Endpoint mới: trả về danh sách amenities từ DB ────────────────────────────
-
-@router.get("/api/amenities")
-def api_amenities():
-    """
-    Trả về danh sách tiện nghi (AMEN_LABELS) từ bảng Services trong DB.
-    Frontend dùng để render filter checkbox và badge thay vì hardcode.
-    Response: [{ "key": "Wi-Fi", "label": "Wi-Fi", "icon": "📶" }, ...]
-    """
+@router.post("/api/favorites")
+def add_favorite(payload: FavoritePayload):
+    conn = None
     try:
-        from db import get_amenity_labels_cached
-        rows = get_amenity_labels_cached()
-        return [
-            {
-                "key":   row["ServiceName"],
-                "label": row["ServiceName"],
-                "icon":  row.get("IconEmoji") or "",
-            }
-            for row in rows
-        ]
-    except Exception as e:
-        traceback.print_exc()
-        # Fallback: trả về hardcode nếu DB chưa sẵn sàng
-        return [
-            {"key": "Wi-Fi",      "label": "Wi-Fi",      "icon": "📶"},
-            {"key": "Hồ bơi",     "label": "Hồ bơi",     "icon": "🏊"},
-            {"key": "Điều hòa",   "label": "Điều hòa",   "icon": "❄️"},
-            {"key": "Bãi đỗ xe",  "label": "Bãi đỗ xe",  "icon": "🅿️"},
-            {"key": "Phòng gym",  "label": "Phòng gym",  "icon": "🏋️"},
-            {"key": "Spa",        "label": "Spa",         "icon": "💆"},
-            {"key": "Nhà hàng",   "label": "Nhà hàng",   "icon": "🍽"},
-            {"key": "Thú cưng",   "label": "Thú cưng",   "icon": "🐾"},
-        ]
+        conn = get_conn()
+        curs = conn.cursor()
 
+        user_id = payload.user_id
+        hotel_id = payload.hotel_id
 
-# ── Endpoint mới: trả về danh sách thành phố từ DB ───────────────────────────
+        # kiểm tra user tồn tại
+        # curs.execute("SELECT UserId FROM Users WHERE UserId = ?", (user_id,))
+        # user = curs.fetchone()
 
-@router.get("/api/cities")
-def api_cities():
-    """
-    Trả về danh sách city code aliases từ bảng Cities trong DB.
-    Response: [{ "code": "HAN", "name": "Hanoi", "country": "Vietnam" }, ...]
-    """
-    try:
-        from db import query_all
-        rows = query_all(
-            "SELECT CityCode, CityName, CountryName "
-            "FROM Cities WHERE CityCode IS NOT NULL ORDER BY CityName"
+        # if not user:
+        #     raise HTTPException(status_code=404, detail="Người dùng không tồn tại")
+
+        # kiểm tra đã thích chưa
+        curs.execute(
+            "SELECT FavoriteId FROM FavoriteHotels WHERE UserId = ? AND HotelId = ?",
+            (user_id, hotel_id)
         )
-        return [
-            {
-                "code":    row["CityCode"],
-                "name":    row["CityName"],
-                "country": row["CountryName"],
-            }
-            for row in rows
-        ]
+        existed = curs.fetchone()
+
+        if existed:
+            raise HTTPException(status_code=400, detail="Khách sạn đã có trong yêu thích")
+
+        # thêm favorite
+        curs.execute(
+            "INSERT INTO FavoriteHotels (UserId, HotelId) VALUES (?, ?)",
+            (user_id, hotel_id)
+        )
+        conn.commit()
+
+        return {
+            "success": True,
+            "message": "Đã thêm vào yêu thích!",
+            "user_id": user_id,
+            "hotel_id": hotel_id
+        }
+
+    except HTTPException:
+        raise
     except Exception as e:
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Lỗi server: {str(e)}")
+    finally:
+        if conn:
+            conn.close()
 
 
-# ── Endpoint reload cache (dùng khi admin cập nhật DB) ───────────────────────
-
-@router.post("/api/admin/reload-cache")
-def api_reload_cache():
-    """
-    Xóa lru_cache để lần gọi tiếp theo sẽ đọc lại từ DB.
-    Gọi sau khi thêm/sửa Services hoặc Cities trong DB.
-    """
-    try:
-        from db import invalidate_cache
-        invalidate_cache()
-        return {"status": "ok", "message": "Cache đã được xóa. Dữ liệu sẽ được tải lại từ DB."}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
