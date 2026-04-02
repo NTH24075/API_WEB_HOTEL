@@ -63,29 +63,134 @@ def _unsplash_url(photo_id: str, w: int = 900, h: int = 600) -> str:
     )
 
 
-def _hotel_thumbnail(hotel_id: str) -> str:
-    """Thumbnail riêng biệt cho từng khách sạn trong danh sách kết quả."""
+# ── Helpers tính index từ hotel_id (seed-based, nhất quán) ───────────────────
+
+def _pool_indexes_for_hotel(hotel_id: str) -> tuple[int, list[int]]:
+    """Trả về (thumbnail_index, gallery_indexes[5]) từ hotel_id."""
     seed = sum(ord(c) for c in str(hotel_id))
-    photo_id, _ = _HOTEL_PHOTO_POOL[seed % len(_HOTEL_PHOTO_POOL)]
+    n = len(_HOTEL_PHOTO_POOL)
+    thumb_idx = seed % n
+    gallery_idxs = [(seed + i * 3) % n for i in range(5)]
+    return thumb_idx, gallery_idxs
+
+
+def _hotel_thumbnail_fallback(hotel_id: str) -> str:
+    """Thumbnail tính từ pool — dùng khi DB chưa có ảnh."""
+    thumb_idx, _ = _pool_indexes_for_hotel(hotel_id)
+    photo_id, _ = _HOTEL_PHOTO_POOL[thumb_idx]
     return _unsplash_url(photo_id, w=480, h=320)
 
 
-def _hotel_gallery(hotel_id: str) -> list[dict[str, str]]:
-    """
-    Gallery 5 ảnh đa dạng cho trang detail.
-    Mỗi khách sạn có bộ ảnh riêng, nhất quán giữa các lần load.
-    Bước nhảy 3 để tránh các ảnh liên tiếp quá giống nhau về chủ đề.
-    """
-    seed = sum(ord(c) for c in str(hotel_id))
-    n    = len(_HOTEL_PHOTO_POOL)
-    indices = [(seed + i * 3) % n for i in range(5)]
+def _hotel_gallery_fallback(hotel_id: str) -> list[dict[str, str]]:
+    """Gallery 5 ảnh tính từ pool — dùng khi DB chưa có ảnh."""
+    _, gallery_idxs = _pool_indexes_for_hotel(hotel_id)
     return [
         {
             "url":     _unsplash_url(_HOTEL_PHOTO_POOL[i][0], w=1200, h=800),
             "caption": _HOTEL_PHOTO_POOL[i][1],
         }
-        for i in indices
+        for i in gallery_idxs
     ]
+
+
+def _hotel_thumbnail(hotel_id: str) -> str:
+    """
+    Thumbnail cho hotel: ưu tiên DB → fallback pool.
+    Nếu chưa có trong DB, upsert để lần sau đọc từ DB.
+    """
+    try:
+        from db import query_one
+        row = query_one(
+            "SELECT TOP 1 hi.ImageUrl FROM HotelImages hi "
+            "JOIN Hotels h ON h.HotelId = hi.HotelId "
+            "WHERE h.ExternalHotelCode = ? AND hi.DisplayOrder = 0",
+            (hotel_id,),
+        )
+        if row and row.get("ImageUrl"):
+            return row["ImageUrl"]
+    except Exception:
+        pass  # DB chưa sẵn sàng — dùng fallback
+
+    # Chưa có → upsert (fire-and-forget)
+    _upsert_hotel_images_to_db(hotel_id)
+    return _hotel_thumbnail_fallback(hotel_id)
+
+
+def _hotel_gallery(hotel_id: str) -> list[dict[str, str]]:
+    """
+    Gallery 5 ảnh cho detail page: ưu tiên DB → fallback pool.
+    """
+    try:
+        from db import query_all
+        rows = query_all(
+            "SELECT hi.ImageUrl, hi.Caption FROM HotelImages hi "
+            "JOIN Hotels h ON h.HotelId = hi.HotelId "
+            "WHERE h.ExternalHotelCode = ? AND hi.DisplayOrder >= 1 "
+            "ORDER BY hi.DisplayOrder",
+            (hotel_id,),
+        )
+        if rows:
+            return [{"url": r["ImageUrl"], "caption": r["Caption"] or ""} for r in rows]
+    except Exception:
+        pass
+
+    return _hotel_gallery_fallback(hotel_id)
+
+
+def _upsert_hotel_images_to_db(hotel_id: str) -> None:
+    """
+    Lưu ảnh của hotel vào DB (HotelImages) nếu chưa có.
+    Gọi sau khi Hotels đã có record với ExternalHotelCode = hotel_id.
+    Nếu Hotels chưa có thì bỏ qua — sẽ được retry lần sau.
+    """
+    try:
+        from db import query_one, get_connection
+
+        hotel_row = query_one(
+            "SELECT HotelId FROM Hotels WHERE ExternalHotelCode = ?",
+            (hotel_id,),
+        )
+        if not hotel_row:
+            return  # Hotels chưa có record này
+
+        db_hotel_id = hotel_row["HotelId"]
+
+        existing = query_one(
+            "SELECT COUNT(*) AS cnt FROM HotelImages WHERE HotelId = ?",
+            (db_hotel_id,),
+        )
+        if existing and existing.get("cnt", 0) > 0:
+            return  # Đã có ảnh, không ghi đè
+
+        thumb_idx, gallery_idxs = _pool_indexes_for_hotel(hotel_id)
+        n = len(_HOTEL_PHOTO_POOL)
+
+        with get_connection() as conn:
+            cursor = conn.cursor()
+
+            # Thumbnail (DisplayOrder = 0)
+            t_photo_id, t_caption = _HOTEL_PHOTO_POOL[thumb_idx % n]
+            cursor.execute(
+                "INSERT INTO HotelImages (HotelId, ImageUrl, Caption, DisplayOrder) "
+                "VALUES (?, ?, ?, 0)",
+                (db_hotel_id, _unsplash_url(t_photo_id, w=480, h=320), t_caption),
+            )
+
+            # Gallery (DisplayOrder 1-5)
+            for order, idx in enumerate(gallery_idxs, start=1):
+                g_photo_id, g_caption = _HOTEL_PHOTO_POOL[idx % n]
+                cursor.execute(
+                    "INSERT INTO HotelImages (HotelId, ImageUrl, Caption, DisplayOrder) "
+                    "VALUES (?, ?, ?, ?)",
+                    (db_hotel_id, _unsplash_url(g_photo_id, w=1200, h=800), g_caption, order),
+                )
+
+            conn.commit()
+
+    except Exception as exc:
+        import traceback as _tb
+        print(f"[warn] _upsert_hotel_images_to_db({hotel_id}): {exc}")
+        _tb.print_exc()
 
 CITY_CODE_ALIASES = {
     "BKK": "Bangkok",

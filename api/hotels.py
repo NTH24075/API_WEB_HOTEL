@@ -4,10 +4,12 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from core.database import get_conn
 import traceback
+import threading
 from services.amadeus_service import (
     get_hotel_detail_payload,
     search_hotels_by_city,
     get_weather_forecast_3days,
+    _upsert_hotel_images_to_db,
 )
 
 class FavoritePayload(BaseModel):
@@ -18,18 +20,70 @@ router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 
 
+def _sync_hotel_to_db(hotel: dict) -> None:
+    """
+    Upsert một hotel (từ Geoapify) vào bảng Hotels + HotelImages.
+    Chạy trong background thread để không làm chậm response.
+    """
+    try:
+        from db import query_one, get_connection
+
+        hotel_id = hotel.get("hotel_id") or ""
+        if not hotel_id:
+            return
+
+        # Upsert Hotels
+        existing = query_one(
+            "SELECT HotelId FROM Hotels WHERE ExternalHotelCode = ?",
+            (hotel_id,),
+        )
+        if not existing:
+            # Lấy CityId mặc định (nếu chưa biết city thì dùng CityId=1)
+            with get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "INSERT INTO Hotels "
+                    "(ExternalHotelCode, CityId, HotelName, Address, Latitude, Longitude, "
+                    " StarRating, ThumbnailUrl, Source) "
+                    "VALUES (?, 1, ?, ?, ?, ?, ?, ?, 'geoapify')",
+                    (
+                        hotel_id,
+                        hotel.get("name") or "Unknown",
+                        hotel.get("address") or "",
+                        hotel.get("latitude"),
+                        hotel.get("longitude"),
+                        hotel.get("stars"),
+                        hotel.get("thumbnail") or "",
+                    ),
+                )
+                conn.commit()
+
+        # Upsert HotelImages (thumbnail + gallery)
+        _upsert_hotel_images_to_db(hotel_id)
+
+    except Exception as exc:
+        print(f"[warn] _sync_hotel_to_db: {exc}")
+
+
 @router.get("/api/hotels")
 def api_list_hotels(
     city_code: str | None = Query(None),
     city: str | None = Query(None),
-    max_results: int = Query(12, ge=1, le=30),
+    max_results: int = Query(12, ge=1, le=200),
 ):
     try:
-        return search_hotels_by_city(
+        hotels = search_hotels_by_city(
             city_code=city_code,
             city=city,
             max_results=max_results,
         )
+        # Sync hotels vào DB trong background — không block response
+        def _bg():
+            for h in hotels:
+                _sync_hotel_to_db(h)
+        threading.Thread(target=_bg, daemon=True).start()
+
+        return hotels
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
