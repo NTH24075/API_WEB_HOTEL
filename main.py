@@ -52,10 +52,25 @@ load_dotenv()
 def auth_page(request: Request):
     return templates.TemplateResponse(
         request=request,
-        name="auth.html",
+        name="/user/auth.html",
         context={
             "google_client_id": os.getenv("GOOGLE_CLIENT_ID")
         }
+    )
+@app.get("/admin-user-page")
+def admin_user_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="/user/admin_user.html",
+        context={}
+    )
+
+@app.get("/user-info-page")
+def user_info_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="/user/user_info.html",
+        context={}
     )
 # ===== HOTEL DETAIL PAGE (UI) =====
 @app.get("/hotels/{hotel_id}")

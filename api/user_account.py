@@ -1,24 +1,36 @@
 from fastapi import APIRouter, HTTPException, Depends
 from core.database import get_conn
 from core.dependencies import get_current_user
-from schemas.users_schemas import UpdateAccountInfoRequest
+from schemas.users_schemas import UpdateAccountInfoRequest, DeleteAccountRequestBody
 
 router = APIRouter(prefix="/user", tags=["User"])
 
 @router.post("/delete-request")
-def request_delete_account(cur_user=Depends(get_current_user)):
+def request_delete_account(
+    data: DeleteAccountRequestBody,
+    cur_user=Depends(get_current_user)
+):
     conn = get_conn()
     try:
         curs = conn.cursor()
-        curs.execute("select 1 from DeleteAccountRequests " \
-                    "where UserId = ? and Status = 'Pending' ",(cur_user["user_id"],))
+
+        curs.execute(
+            "select 1 from DeleteAccountRequests "
+            "where UserId = ? and Status = 'Pending'",
+            (cur_user["user_id"],)
+        )
         existed = curs.fetchone()
         if existed:
-            raise HTTPException(400,"Ban da gui yeu cau truoc do")
-        curs.execute("insert into DeleteAccountRequests(UserId, Status) " \
-                    "values (?, 'Pending')", (cur_user["user_id"],))
+            raise HTTPException(400, "Ban da gui yeu cau truoc do")
+
+        curs.execute(
+            "insert into DeleteAccountRequests(UserId, Status, Reason) "
+            "values (?, 'Pending', ?)",
+            (cur_user["user_id"], data.reason)
+        )
+
         conn.commit()
-        return {"message":"Da gui yeu cau xoa tai khoan"}
+        return {"message": "Da gui yeu cau xoa tai khoan"}
     finally:
         conn.close()
         
@@ -38,14 +50,19 @@ def update_account_info(data: UpdateAccountInfoRequest ,cur_user=Depends(get_cur
             raise HTTPException(403,f"Tai khoan dang o trang thai {exixted.Status}")
         
         #update info
+        # update info
         curs.execute("update Users "
-                    "set FullName = ?, "
-                    "    Phone = ?, "
-                    "    CitizenId = ?, "
-                    "    Address = ?, "
-                    "    AvatarUrl = ?, "
-                    "    UpdatedAt = GETDATE() "
-                    "where UserId = ?",(data.full_name, data.phone, data.citizen_id, data.address, data.avatar_url,cur_user["user_id"]))
+            "set FullName = ?, "
+            "    Phone = ?, "
+            "    CitizenId = ?, "
+            "    Address = ?, "
+            "    AvatarUrl = ?, "
+            "    UpdatedAt = GETDATE() "
+            "where UserId = ?",(data.full_name, data.phone, data.citizen_id, data.address, data.avatar_url,cur_user["user_id"]))
+        # log update để admin thấy
+        curs.execute(
+            "insert into UserUpdateLogs(UserId) values (?)",
+            (cur_user["user_id"],))
         conn.commit()
         curs.execute("select u.UserId, u.FullName, u.Email, u.Phone, u.CitizenId, u.Address, u.AvatarUrl, u.Status, r.RoleName "
                     "from Users u "

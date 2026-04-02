@@ -32,6 +32,10 @@ class UpdateAccountInfoRequest(BaseModel):
     address: Optional[str] = None
     avatar_url: Optional[str] = None
 
+
+class DeleteAccountRequestBody(BaseModel):
+    reason: str | None = None
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
