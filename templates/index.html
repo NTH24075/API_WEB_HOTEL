@@ -1,11 +1,10 @@
-
 <html lang="vi">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>StayBook – Tìm khách sạn</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/style.css" />
 </head>
 <body data-page="hotel-list">
@@ -36,6 +35,10 @@
             <div class="field">
                 <label>📅 Check-in</label>
                 <input id="checkInDate" type="date" value="2026-04-08" />
+            </div>
+            <div class="field">
+                <label>📅 Check-out</label>
+                <input id="checkOutDate" type="date" value="2026-04-10" />
             </div>
             <div class="field field-sm">
                 <label>👤 Người lớn</label>
@@ -86,14 +89,8 @@
         <div class="widget">
             <div class="widget-title">🛎 Tiện nghi</div>
             <div class="amenity-list" id="amenityFilter">
-                <label class="amenity-item"><input type="checkbox" value="wifi"> Wi-Fi miễn phí</label>
-                <label class="amenity-item"><input type="checkbox" value="pool"> Hồ bơi</label>
-                <label class="amenity-item"><input type="checkbox" value="ac"> Điều hòa</label>
-                <label class="amenity-item"><input type="checkbox" value="parking"> Bãi đỗ xe</label>
-                <label class="amenity-item"><input type="checkbox" value="gym"> Phòng gym</label>
-                <label class="amenity-item"><input type="checkbox" value="spa"> Spa</label>
-                <label class="amenity-item"><input type="checkbox" value="restaurant"> Nhà hàng</label>
-                <label class="amenity-item"><input type="checkbox" value="pets"> Cho phép thú cưng</label>
+                <!-- Loaded dynamically from /api/amenities -->
+                <div style="font-size:13px;color:var(--text-muted);padding:4px 0">Đang tải tiện nghi…</div>
             </div>
         </div>
 
@@ -170,32 +167,6 @@
   <span>© 2026 StayBook · Đồ án demo</span>
 </footer>
 
-<script src="/static/js/hotel.js?v=2"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-  const params = new URLSearchParams(window.location.search);
-  const cityParam = params.get('city');
-  const checkIn = params.get('check_in');
-  const adults = params.get('adults');
-
-  if (cityParam) {
-    const cityInput = document.getElementById('cityCode');
-    if (cityInput) cityInput.value = cityParam;
-  }
-  if (checkIn) {
-    const ciInput = document.getElementById('checkInDate');
-    if (ciInput) ciInput.value = checkIn;
-  }
-  if (adults) {
-    const adInput = document.getElementById('adults');
-    if (adInput) adInput.value = adults;
-  }
-
-  if (cityParam && typeof loadHotels === 'function') {
-    setTimeout(loadHotels, 80);
-  }
-});
-</script>
-
+<script src="/static/js/hotel.js?v=3"></script>
 </body>
 </html>

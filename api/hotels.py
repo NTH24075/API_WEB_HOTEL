@@ -13,7 +13,7 @@ router = APIRouter()
 def api_list_hotels(
     city_code: str | None = Query(None),
     city: str | None = Query(None),
-    max_results: int = Query(12, ge=1, le=30),
+    max_results: int = Query(12, ge=1, le=200),
 ):
     try:
         return search_hotels_by_city(
