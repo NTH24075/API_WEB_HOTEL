@@ -26,7 +26,7 @@ def _sync_hotel_to_db(hotel: dict) -> None:
     Chạy trong background thread để không làm chậm response.
     """
     try:
-        from db import query_one, get_connection
+        from core.database import query_one, get_connection
 
         hotel_id = hotel.get("hotel_id") or ""
         if not hotel_id:

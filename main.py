@@ -18,6 +18,8 @@ from api.admin_users import router as admin_users_router
 from api.receptionist_api import router as receptionist_router
 from api.booking_hotel import hotel_router as booking_hotel_router
 from api.booking_hotel import review_router as review_router
+from api.admin_booking_api import router as admin_booking_router
+
 
 # ===== INIT APP =====
 app = FastAPI(title="Hotel Management API")
@@ -49,6 +51,8 @@ app.include_router(admin_hotels_router)
 app.include_router(receptionist_router)
 app.include_router(booking_hotel_router)
 app.include_router(review_router)
+app.include_router(admin_booking_router)
+
 
 # ===== UI ROUTES =====
 
