@@ -1,9 +1,10 @@
-<!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Tìm khách sạn</title>
+    <title>StayBook – Tìm khách sạn</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/style.css" />
 </head>
 <body data-page="hotel-list">
@@ -49,7 +50,44 @@
             <div id="hotelResults" class="hotel-grid"></div>
         </section>
     </main>
+</div>
 
-    <script src="/static/js/hotel.js"></script>
+<section class="why-section">
+  <div class="why-left">
+    <p class="section-label">Vì sao chọn StayBook</p>
+    <h2 class="section-heading">Đặt phòng<br><em>thông minh</em> hơn</h2>
+    <p>Chúng tôi kết hợp dữ liệu thực từ Geoapify và thời tiết thực tế để giúp bạn ra quyết định tốt nhất.</p>
+  </div>
+
+  <div class="why-cards">
+    <div class="why-card">
+      <div class="why-icon">🌤</div>
+      <div class="why-title">Dự báo thời tiết</div>
+      <div class="why-desc">Xem ngay thời tiết 3 ngày tại điểm đến ngay khi tìm kiếm.</div>
+    </div>
+    <div class="why-card">
+      <div class="why-icon">📍</div>
+      <div class="why-title">Bản đồ tích hợp</div>
+      <div class="why-desc">Xem vị trí từng khách sạn trực tiếp trên bản đồ Mapbox.</div>
+    </div>
+    <div class="why-card">
+      <div class="why-icon">⚡</div>
+      <div class="why-title">Tìm kiếm nhanh</div>
+      <div class="why-desc">Kết quả hiển thị tức thì với bộ lọc sao, giá, tiện nghi.</div>
+    </div>
+    <div class="why-card">
+      <div class="why-icon">🔒</div>
+      <div class="why-title">Lưu trữ an toàn</div>
+      <div class="why-desc">Lịch sử đặt phòng được lưu trực tiếp vào cơ sở dữ liệu nội bộ.</div>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <a class="brand" href="/">Stay<em>Book</em></a>
+  <span>© 2026 StayBook · Đồ án demo</span>
+</footer>
+
+<script src="/static/js/hotel.js?v=3"></script>
 </body>
 </html>

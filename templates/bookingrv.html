@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Xác nhận đặt phòng</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f7fa;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .card {
+      background: #fff;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .card h2 {
+      margin-top: 0;
+      margin-bottom: 15px;
+    }
+
+    .muted-text {
+      color: #777;
+    }
+
+    .price {
+      font-size: 20px;
+      font-weight: bold;
+      color: #007bff;
+    }
+
+    .btn-confirm {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .btn-confirm:hover {
+      background: #0056b3;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>Xác nhận đặt phòng</h1>
+
+    <!-- Thông tin user -->
+    <div class="card">
+      <h2>Thông tin người đặt</h2>
+      <div id="booking-user"></div>
+    </div>
+
+    <!-- Thông tin phòng -->
+    <div class="card">
+      <h2>Thông tin phòng</h2>
+      <div id="booking-room"></div>
+    </div>
+
+    <!-- Nút xác nhận -->
+    <button class="btn-confirm" onclick="confirmBooking()">
+      Xác nhận đặt phòng
+    </button>
+  </div>
+
+  <script>
+    async function loadBookingReview() {
+      try {
+        const response = await fetch("/api/bookinghotels/bookingrv-data", {
+          method: "GET",
+          credentials: "include"
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          alert(data.detail || "Không lấy được dữ liệu booking");
+          return;
+        }
+
+        renderBookingReview(data);
+      } catch (error) {
+        console.error("Lỗi:", error);
+        alert("Không thể tải dữ liệu booking");
+      }
+    }
+
+    function renderBookingReview(data) {
+      const user = data.user;
+      const room = data.room_offer;
+
+      document.getElementById("booking-user").innerHTML = `
+        <p><strong>Người đặt:</strong> ${user.full_name || user.username || "Không có tên"}</p>
+        <p><strong>Email:</strong> ${user.email || "Không có email"}</p>
+      `;
+
+      document.getElementById("booking-room").innerHTML = `
+        <h3>${room.RoomType || "Phòng tiêu chuẩn"}</h3>
+        <p>${room.Description || "Không có mô tả"}</p>
+        <p><strong>Giá mỗi đêm:</strong> ${room.PricePerNight} ${room.Currency}</p>
+        <p><strong>Check-in:</strong> ${room.CheckInDate}</p>
+        <p><strong>Check-out:</strong> ${room.CheckOutDate}</p>
+        <p><strong>Chính sách hủy:</strong> ${room.CancellationPolicy || "Không có thông tin"}</p>
+      `;
+    }
+
+    async function confirmBooking() {
+      try {
+        const response = await fetch("/api/bookinghotels/confirm-booking", {
+          method: "POST",
+          credentials: "include"
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          alert(data.detail || "Đặt phòng thất bại");
+          return;
+        }
+
+        alert("Đặt phòng thành công!");
+        window.location.href = "/";
+      } catch (error) {
+        console.error("Lỗi:", error);
+        alert("Không thể xác nhận đặt phòng");
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", loadBookingReview);
+  </script>
+</body>
+</html>
