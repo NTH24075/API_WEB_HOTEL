@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin User Dashboard</title>
+  <link rel="stylesheet" href="/static/css/user/admin_user.css" />
+</head>
+<body>
+  <header class="admin-topbar">
+    <div>
+      <p class="topbar-kicker">StayBook Admin</p>
+      <h1>Quản lí tài khoản người dùng</h1>
+    </div>
+    <div class="topbar-actions">
+      <span id="adminNameBadge" class="admin-badge">Admin</span>
+      <button id="logoutBtn" class="ghost-btn">Đăng xuất</button>
+    </div>
+  </header>
+
+  <main class="dashboard-wrap">
+    <section class="left-column card">
+      <div class="section-head">
+        <h2>Luồng update thông tin của user</h2>
+        <p>Chỉ hiện sự kiện user đã cập nhật, không hiện dữ liệu chi tiết.</p>
+      </div>
+      <div id="updateLogsList" class="simple-feed empty-state">
+        Chưa có log cập nhật.
+      </div>
+    </section>
+
+    <section class="right-column card rounded-panel">
+      <div class="section-head">
+        <h2>Yêu cầu xóa tài khoản</h2>
+        <p>Quản lí trạng thái Pending / Approved / Rejected.</p>
+      </div>
+
+      <div class="filter-row">
+        <button class="filter-btn active" data-status="ALL">Tất cả</button>
+        <button class="filter-btn" data-status="Pending">Pending</button>
+        <button class="filter-btn" data-status="Approved">Approved</button>
+        <button class="filter-btn" data-status="Rejected">Rejected</button>
+      </div>
+
+      <div class="request-table-wrap">
+        <table class="request-table">
+          <thead>
+            <tr>
+              <th>Request ID</th>
+              <th>User ID</th>
+              <th>Tên hiển thị</th>
+              <th>Trạng thái</th>
+              <th>Thời gian tạo</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="deleteRequestsBody">
+            <tr>
+              <td colspan="6" class="table-empty">Đang tải dữ liệu...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="bottom-column card report-placeholder">
+      <h2>Báo cáo từ receptions</h2>
+      <p>Phần này để sau.</p>
+    </section>
+  </main>
+
+  <div id="detailOverlay" class="overlay hidden">
+    <div class="floating-panel">
+      <button id="closeDetailBtn" class="close-btn">×</button>
+      <div class="floating-panel-body">
+        <div class="detail-top">
+          <h3>Thông tin chi tiết request xóa tài khoản</h3>
+          <span id="detailStatus" class="status-chip">Pending</span>
+        </div>
+
+        <div class="detail-block">
+          <h4>Thông tin tài khoản</h4>
+          <div class="detail-grid" id="detailUserInfo"></div>
+        </div>
+
+        <div class="detail-block">
+          <h4>Lí do xóa tài khoản</h4>
+          <p id="detailReason" class="reason-box">Không có lí do.</p>
+        </div>
+
+        <div class="detail-actions" id="detailActions">
+          <button id="approveBtn" class="primary-btn">Approve</button>
+          <button id="rejectBtn" class="danger-btn">Reject</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/user/admin_user.js"></script>
+</body>
+</html>

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Thông tin tài khoản</title>
+  <link rel="stylesheet" href="/static/css/user/user_info.css" />
+</head>
+<body>
+  <header class="user-topbar">
+    <div>
+      <p class="eyebrow">StayBook User</p>
+      <h1>Thông tin tài khoản</h1>
+    </div>
+    <div class="topbar-right">
+      <button type="button" id="logoutBtn" class="ghost-btn">Đăng xuất</button>
+    </div>
+  </header>
+
+  <main class="user-page-wrap">
+    <section class="profile-card">
+      <div class="profile-header">
+        <img
+          id="userAvatar"
+          class="avatar"
+          src="https://via.placeholder.com/120x120?text=User"
+          alt="avatar"
+        />
+
+        <div>
+          <p class="profile-role" id="userRole">Guest</p>
+          <h2 id="userFullName">Đang tải...</h2>
+          <p id="userEmail" class="muted-text">-</p>
+        </div>
+      </div>
+
+      <div id="userNotice" class="notice"></div>
+
+      <div class="info-grid">
+        <div class="info-item">
+          <span class="info-label">Số điện thoại</span>
+          <p id="userPhone">-</p>
+        </div>
+
+        <div class="info-item">
+          <span class="info-label">CCCD</span>
+          <p id="userCitizenId">-</p>
+        </div>
+
+        <div class="info-item">
+          <span class="info-label">Địa chỉ</span>
+          <p id="userAddress">-</p>
+        </div>
+
+        <div class="info-item">
+          <span class="info-label">Trạng thái</span>
+          <p id="userStatus">-</p>
+        </div>
+      </div>
+
+      <div class="action-row">
+        <button type="button" id="openUpdateBtn" class="primary-btn">
+          Update thông tin của bản thân
+        </button>
+        <button type="button" id="openDeleteRequestBtn" class="danger-btn">
+          Gửi request xóa tài khoản
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <div id="updateOverlay" class="overlay hidden">
+    <div class="modal-card">
+      <button type="button" id="closeUpdateBtn" class="close-btn">×</button>
+      <h3>Cập nhật thông tin tài khoản</h3>
+
+      <form id="updateForm" class="form-grid">
+        <label>
+          <span>Họ và tên</span>
+          <input id="updateFullName" type="text" required />
+        </label>
+
+        <label>
+          <span>Số điện thoại</span>
+          <input id="updatePhone" type="text" />
+        </label>
+
+        <label>
+          <span>CCCD</span>
+          <input id="updateCitizenId" type="text" />
+        </label>
+
+        <label>
+          <span>Địa chỉ</span>
+          <input id="updateAddress" type="text" />
+        </label>
+
+        <label class="full-width">
+          <span>Avatar URL</span>
+          <input id="updateAvatarUrl" type="text" />
+        </label>
+
+        <button type="submit" class="primary-btn full-width">Lưu thay đổi</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="deleteOverlay" class="overlay hidden">
+    <div class="modal-card small-modal">
+      <button type="button" id="closeDeleteBtn" class="close-btn">×</button>
+      <h3>Gửi yêu cầu xóa tài khoản</h3>
+
+      <form id="deleteRequestForm">
+        <label class="textarea-label">
+          <span>Lí do xóa tài khoản</span>
+          <textarea id="deleteReason" rows="5" placeholder="Có thể để trống"></textarea>
+        </label>
+
+        <button type="submit" class="danger-btn full-width">Gửi request</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="/static/js/user/user_info.js"></script>
+</body>
+</html>

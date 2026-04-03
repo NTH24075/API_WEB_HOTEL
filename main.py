@@ -13,13 +13,11 @@ MAPBOX_TOKEN = os.getenv("MAPBOX_TOKEN", "")
 # ===== IMPORT ROUTERS =====
 from api.hotels import router as hotels_router
 from api.admin_hotels import router as admin_hotels_router
+
+# Route for account
 from api.auth import router as auth_router
 from api.admin_users import router as admin_users_router
-from api.receptionist_api import router as receptionist_router
-from api.booking_hotel import hotel_router as booking_hotel_router
-from api.booking_hotel import review_router as review_router
-from api.admin_booking_api import router as admin_booking_router
-
+from api.user_account import router as user_account_router
 
 # ===== INIT APP =====
 app = FastAPI(title="Hotel Management API")
@@ -44,15 +42,11 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 # ===== REGISTER ROUTERS =====
-app.include_router(hotels_router, prefix="/api")   # API public
-app.include_router(auth_router)
-app.include_router(admin_users_router)
-app.include_router(admin_hotels_router)
-app.include_router(receptionist_router)
-app.include_router(booking_hotel_router)
-app.include_router(review_router)
-app.include_router(admin_booking_router)
-
+app.include_router(hotels_router)          # public hotel API (Geoapify)
+app.include_router(auth_router)            # login/register
+app.include_router(admin_users_router)     # admin quản lý user
+app.include_router(admin_hotels_router)    # admin quản lý hotel
+app.include_router(user_account_router)    # approved delete request from user
 
 # ===== UI ROUTES =====
 
@@ -76,7 +70,34 @@ def hotels_page(request: Request):
         context={}
     )
 
-# Trang chi tiết hotel
+# ===== Route regis / login UI
+load_dotenv()
+@app.get("/auth-page")
+def auth_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="/user/auth.html",
+        context={
+            "google_client_id": os.getenv("GOOGLE_CLIENT_ID")
+        }
+    )
+@app.get("/admin-user-page")
+def admin_user_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="/user/admin_user.html",
+        context={}
+    )
+
+@app.get("/user-info-page")
+def user_info_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="/user/user_info.html",
+        context={}
+    )
+
+# ===== HOTEL DETAIL PAGE (UI) =====
 @app.get("/hotels/{hotel_id}")
 def hotel_detail_page(
     request: Request,
@@ -94,3 +115,4 @@ def hotel_detail_page(
             "mapbox_token": MAPBOX_TOKEN,
         },
     )
+
