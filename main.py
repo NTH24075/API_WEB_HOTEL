@@ -94,3 +94,32 @@ def hotel_detail_page(
             "mapbox_token": MAPBOX_TOKEN,
         },
     )
+
+@app.get("/api/amenities")
+async def get_amenities():
+    from services.amadeus_service import get_hotel_detail_payload
+    amenities = [
+        {"id": 1, "name": "Wi-Fi", "icon": "wifi"},
+        {"id": 2, "name": "Hồ bơi", "icon": "pool"},
+        {"id": 3, "name": "Điều hòa", "icon": "ac_unit"},
+        {"id": 4, "name": "Nhà hàng", "icon": "restaurant"},
+        {"id": 5, "name": "Bãi đỗ xe", "icon": "local_parking"},
+        {"id": 6, "name": "Phòng gym", "icon": "fitness_center"},
+        {"id": 7, "name": "Spa", "icon": "spa"},
+        {"id": 8, "name": "Lễ tân 24/7", "icon": "support_agent"},
+    ]
+    return amenities
+
+
+@app.get("/api/weather")
+async def get_weather(city_code: str, check_in: str, lang: str = "vi"):
+    from services.amadeus_service import get_weather_forecast_3days
+    try:
+        return get_weather_forecast_3days(
+            city_code=city_code,
+            check_in=check_in,
+            lang=lang,
+        )
+    except Exception as e:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=500, detail=str(e))

@@ -20,13 +20,61 @@ router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 
 
+def _get_or_create_city_id(cursor, hotel: dict) -> int:
+    """
+    Tìm CityId phù hợp từ tọa độ hotel, hoặc tạo mới nếu chưa có.
+    Ưu tiên lookup theo country_code + tên city từ address.
+    """
+    # Thử tìm theo tên thành phố trong address (nếu có)
+    address = hotel.get("address") or ""
+    city_name = None
+    # Geoapify thường trả về "..., Thành phố, Quốc gia"
+    parts = [p.strip() for p in address.split(",") if p.strip()]
+    if len(parts) >= 2:
+        city_name = parts[-2]  # phần thứ 2 từ cuối thường là thành phố
+
+    if city_name:
+        cursor.execute(
+            "SELECT TOP 1 CityId FROM Cities WHERE CityName LIKE ?",
+            (f"%{city_name}%",),
+        )
+        row = cursor.fetchone()
+        if row:
+            return row[0]
+
+    # Tìm theo tọa độ gần nhất (trong vòng ~1 độ)
+    lat = hotel.get("latitude")
+    lon = hotel.get("longitude")
+    if lat is not None and lon is not None:
+        cursor.execute(
+            "SELECT TOP 1 CityId FROM Cities "
+            "WHERE ABS(Latitude - ?) < 1.0 AND ABS(Longitude - ?) < 1.0",
+            (lat, lon),
+        )
+        row = cursor.fetchone()
+        if row:
+            return row[0]
+
+    # Không tìm thấy → tạo mới City từ thông tin có được
+    country_code = hotel.get("country_code") or "VN"
+    insert_city_name = city_name or "Unknown City"
+    cursor.execute(
+        "INSERT INTO Cities (CityName, CountryName, Latitude, Longitude) "
+        "OUTPUT INSERTED.CityId "
+        "VALUES (?, ?, ?, ?)",
+        (insert_city_name, country_code, lat, lon),
+    )
+    row = cursor.fetchone()
+    return row[0] if row else 1
+
+
 def _sync_hotel_to_db(hotel: dict) -> None:
     """
     Upsert một hotel (từ Geoapify) vào bảng Hotels + HotelImages.
     Chạy trong background thread để không làm chậm response.
     """
     try:
-        from core.database import query_one, get_connection
+        from Db import query_one, get_connection
 
         hotel_id = hotel.get("hotel_id") or ""
         if not hotel_id:
@@ -38,16 +86,18 @@ def _sync_hotel_to_db(hotel: dict) -> None:
             (hotel_id,),
         )
         if not existing:
-            # Lấy CityId mặc định (nếu chưa biết city thì dùng CityId=1)
             with get_connection() as conn:
                 cursor = conn.cursor()
+                # Lookup hoặc tạo City trước để tránh FK violation
+                city_id = _get_or_create_city_id(cursor, hotel)
                 cursor.execute(
                     "INSERT INTO Hotels "
                     "(ExternalHotelCode, CityId, HotelName, Address, Latitude, Longitude, "
                     " StarRating, ThumbnailUrl, Source) "
-                    "VALUES (?, 1, ?, ?, ?, ?, ?, ?, 'geoapify')",
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'geoapify')",
                     (
                         hotel_id,
+                        city_id,
                         hotel.get("name") or "Unknown",
                         hotel.get("address") or "",
                         hotel.get("latitude"),
@@ -183,5 +233,3 @@ def add_favorite(payload: FavoritePayload):
     finally:
         if conn:
             conn.close()
-
-
