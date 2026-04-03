@@ -1,4 +1,3 @@
-
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
@@ -199,7 +198,7 @@
       border-radius: 20px;
       box-shadow: 0 24px 64px rgba(13,17,23,.22), 0 2px 8px rgba(13,17,23,.08);
       display: grid;
-      grid-template-columns: 2fr 1fr .7fr .7fr auto;
+      grid-template-columns: 2fr 1fr 1fr .6fr .6fr auto;
       overflow: hidden;
       border: 1px solid var(--line);
     }
@@ -539,7 +538,11 @@
       </div>
       <div class="sb-field">
         <span class="sb-label">📅 Check-in</span>
-        <input id="checkInDate" type="date" id="checkInDate" />
+        <input id="checkInDate" type="date" />
+      </div>
+      <div class="sb-field">
+        <span class="sb-label">📅 Check-out</span>
+        <input id="checkOutDate" type="date" />
       </div>
       <div class="sb-field">
         <span class="sb-label">👤 Người lớn</span>
@@ -678,23 +681,31 @@
 </footer>
 
 <script>
-  // ── Set default check-in = today ──────────────────────────────────────────
+  // ── Set default check-in = today, check-out = today+2 ───────────────────
   (function () {
-    const today = new Date().toISOString().slice(0, 10);
+    const today    = new Date();
+    const todayStr = today.toISOString().slice(0, 10);
+    const cout     = new Date(today); cout.setDate(cout.getDate() + 2);
+    const coutStr  = cout.toISOString().slice(0, 10);
+
     const ci = document.getElementById('checkInDate');
-    if (ci) ci.value = today;
+    const co = document.getElementById('checkOutDate');
+    if (ci) ci.value = todayStr;
+    if (co) co.value = coutStr;
   })();
 
   // ── Navigate to search results ────────────────────────────────────────────
   function goSearch(cityOverride) {
-    const city    = cityOverride || document.getElementById('cityCode')?.value?.trim() || 'HAN';
-    const checkIn = document.getElementById('checkInDate')?.value || new Date().toISOString().slice(0, 10);
-    const adults  = document.getElementById('adults')?.value || '2';
+    const city     = cityOverride || document.getElementById('cityCode')?.value?.trim() || 'HAN';
+    const checkIn  = document.getElementById('checkInDate')?.value || new Date().toISOString().slice(0, 10);
+    const checkOut = document.getElementById('checkOutDate')?.value || '';
+    const adults   = document.getElementById('adults')?.value || '2';
 
     if (!city) { alert('Vui lòng nhập điểm đến.'); return; }
 
-    // Redirect về index.html (trang list) với query params
-    window.location.href = `/hotels?city=${encodeURIComponent(city)}&check_in=${encodeURIComponent(checkIn)}&adults=${encodeURIComponent(adults)}`;
+    const params = new URLSearchParams({ city, check_in: checkIn, adults });
+    if (checkOut) params.set('check_out', checkOut);
+    window.location.href = `/hotels?${params.toString()}`;
   }
 
   // ── Destination cards click ───────────────────────────────────────────────
@@ -702,11 +713,14 @@
     const card = e.target.closest('.dest-card[data-city]');
     if (!card) return;
 
-    const city    = card.dataset.city;
-    const checkIn = new Date().toISOString().slice(0, 10);   // ngày hôm nay
-    const adults  = document.getElementById('adults')?.value || '2';
+    const city     = card.dataset.city;
+    const checkIn  = document.getElementById('checkInDate')?.value || new Date().toISOString().slice(0, 10);
+    const checkOut = document.getElementById('checkOutDate')?.value || '';
+    const adults   = document.getElementById('adults')?.value || '2';
 
-    window.location.href = `/hotels?city=${encodeURIComponent(city)}&check_in=${encodeURIComponent(checkIn)}&adults=${encodeURIComponent(adults)}`;
+    const params = new URLSearchParams({ city, check_in: checkIn, adults });
+    if (checkOut) params.set('check_out', checkOut);
+    window.location.href = `/hotels?${params.toString()}`;
   });
 
   // ── Search bar Enter key ──────────────────────────────────────────────────
