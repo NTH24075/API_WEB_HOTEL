@@ -1,6 +1,7 @@
 fastapi
 uvicorn
 httpx
+pyodbc
 jinja2
 python-dotenv
 pyodbc
