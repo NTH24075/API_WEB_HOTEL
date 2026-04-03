@@ -13,13 +13,11 @@ MAPBOX_TOKEN = os.getenv("MAPBOX_TOKEN", "")
 # ===== IMPORT ROUTERS =====
 from api.hotels import router as hotels_router
 from api.admin_hotels import router as admin_hotels_router
+
+# Route for account
 from api.auth import router as auth_router
 from api.admin_users import router as admin_users_router
-from api.receptionist_api import router as receptionist_router
-from api.booking_hotel import hotel_router as booking_hotel_router
-from api.booking_hotel import review_router as review_router
-from api.admin_booking_api import router as admin_booking_router
-
+from api.user_account import router as user_account_router
 
 # ===== INIT APP =====
 app = FastAPI(title="Hotel Management API")
@@ -44,15 +42,11 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 # ===== REGISTER ROUTERS =====
-app.include_router(hotels_router, prefix="/api")   # API public
-app.include_router(auth_router)
-app.include_router(admin_users_router)
-app.include_router(admin_hotels_router)
-app.include_router(receptionist_router)
-app.include_router(booking_hotel_router)
-app.include_router(review_router)
-app.include_router(admin_booking_router)
-
+app.include_router(hotels_router)          # public hotel API (Geoapify)
+app.include_router(auth_router)            # login/register
+app.include_router(admin_users_router)     # admin quản lý user
+app.include_router(admin_hotels_router)    # admin quản lý hotel
+app.include_router(user_account_router)    # approved delete request from user
 
 # ===== UI ROUTES =====
 
@@ -76,7 +70,34 @@ def hotels_page(request: Request):
         context={}
     )
 
-# Trang chi tiết hotel
+# ===== Route regis / login UI
+load_dotenv()
+@app.get("/auth-page")
+def auth_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="/user/auth.html",
+        context={
+            "google_client_id": os.getenv("GOOGLE_CLIENT_ID")
+        }
+    )
+@app.get("/admin-user-page")
+def admin_user_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="/user/admin_user.html",
+        context={}
+    )
+
+@app.get("/user-info-page")
+def user_info_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="/user/user_info.html",
+        context={}
+    )
+
+# ===== HOTEL DETAIL PAGE (UI) =====
 @app.get("/hotels/{hotel_id}")
 def hotel_detail_page(
     request: Request,
@@ -95,31 +116,3 @@ def hotel_detail_page(
         },
     )
 
-@app.get("/api/amenities")
-async def get_amenities():
-    from services.amadeus_service import get_hotel_detail_payload
-    amenities = [
-        {"id": 1, "name": "Wi-Fi", "icon": "wifi"},
-        {"id": 2, "name": "Hồ bơi", "icon": "pool"},
-        {"id": 3, "name": "Điều hòa", "icon": "ac_unit"},
-        {"id": 4, "name": "Nhà hàng", "icon": "restaurant"},
-        {"id": 5, "name": "Bãi đỗ xe", "icon": "local_parking"},
-        {"id": 6, "name": "Phòng gym", "icon": "fitness_center"},
-        {"id": 7, "name": "Spa", "icon": "spa"},
-        {"id": 8, "name": "Lễ tân 24/7", "icon": "support_agent"},
-    ]
-    return amenities
-
-
-@app.get("/api/weather")
-async def get_weather(city_code: str, check_in: str, lang: str = "vi"):
-    from services.amadeus_service import get_weather_forecast_3days
-    try:
-        return get_weather_forecast_3days(
-            city_code=city_code,
-            check_in=check_in,
-            lang=lang,
-        )
-    except Exception as e:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=500, detail=str(e))
