@@ -9,9 +9,9 @@ from fastapi.templating import Jinja2Templates
 from api.hotels import router as hotels_router
 from api.admin_hotels import router as admin_hotels_router
 
+# Route for account
 from api.auth import router as auth_router
 from api.admin_users import router as admin_users_router
-
 from api.user_account import router as user_account_router
 
 # ===== INIT APP =====
@@ -72,6 +72,7 @@ def user_info_page(request: Request):
         name="/user/user_info.html",
         context={}
     )
+
 # ===== HOTEL DETAIL PAGE (UI) =====
 @app.get("/hotels/{hotel_id}")
 def hotel_detail_page(
