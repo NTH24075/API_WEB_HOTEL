@@ -5,15 +5,20 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
-# ===== IMPORT ROUTERS (controller) =====
-from api.hotels import router as hotels_router
 
+# ===== LOAD ENV =====
 load_dotenv()
+MAPBOX_TOKEN = os.getenv("MAPBOX_TOKEN", "")
+
+# ===== IMPORT ROUTERS =====
+from api.hotels import router as hotels_router
 from api.admin_hotels import router as admin_hotels_router
 from api.auth import router as auth_router
 from api.admin_users import router as admin_users_router
+from api.receptionist_api import router as receptionist_router
 from api.booking_hotel import hotel_router as booking_hotel_router
 from api.booking_hotel import review_router as review_router
+from api.admin_booking_api import router as admin_booking_router
 
 
 # ===== INIT APP =====
@@ -28,26 +33,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# (optional - nếu dùng session)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key="your_secret_key"
+)
+
 # ===== STATIC + TEMPLATE =====
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-app.include_router(hotels_router)
-
-MAPBOX_TOKEN = os.getenv("MAPBOX_TOKEN", "")
-
-@app.get("/hotels")
-def hotels_page(request: Request):
-    return templates.TemplateResponse(request=request, name="index.html", context={})
 # ===== REGISTER ROUTERS =====
-app.include_router(hotels_router)          # public hotel API (Geoapify)
-app.include_router(auth_router)            # login/register
-app.include_router(admin_users_router)     # admin quản lý user
-app.include_router(admin_hotels_router)    # admin quản lý hotel
+app.include_router(hotels_router, prefix="/api")   # API public
+app.include_router(auth_router)
+app.include_router(admin_users_router)
+app.include_router(admin_hotels_router)
+app.include_router(receptionist_router)
 app.include_router(booking_hotel_router)
 app.include_router(review_router)
+app.include_router(admin_booking_router)
 
-# ===== HOME PAGE =====
+
+# ===== UI ROUTES =====
+
+# Trang home
 @app.get("/")
 def home(request: Request):
     return templates.TemplateResponse(
@@ -58,7 +67,16 @@ def home(request: Request):
         }
     )
 
-# ===== HOTEL DETAIL PAGE (UI) =====
+# Trang list hotels (UI)
+@app.get("/hotels")
+def hotels_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="index.html",
+        context={}
+    )
+
+# Trang chi tiết hotel
 @app.get("/hotels/{hotel_id}")
 def hotel_detail_page(
     request: Request,

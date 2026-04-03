@@ -46,3 +46,8 @@ def delete_hotel(hotel_id: int, admin=Depends(require_admin)):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi xóa khách sạn: {str(e)}")
+
+
+
+
+        

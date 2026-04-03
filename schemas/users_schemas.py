@@ -46,3 +46,6 @@ class AdminUpdateRoleRequest(BaseModel):
 
 class AdminUpdateStatusRequest(BaseModel):
     status: str
+
+class AdminAssignHotelRequest(BaseModel):
+    hotel_id: int

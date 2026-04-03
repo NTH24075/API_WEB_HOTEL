@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from core.database import get_conn
 from core.dependencies import require_admin
 from schemas.users_schemas import (
+    AdminAssignHotelRequest,
     AdminCreateStaffRequest,
     AdminUpdateRoleRequest,
     AdminUpdateStatusRequest,
@@ -131,5 +132,58 @@ def update_user_status(
             raise HTTPException(status_code=404, detail="Khong tim thay user")
 
         return {"message": "Cap nhap status thanh cong"}
+    finally:
+        conn.close()
+
+@router.put("/users/{user_id}/assign-hotel")
+def assign_hotel_to_receptionist(
+    user_id: int,
+    data: AdminAssignHotelRequest,
+    admin=Depends(require_admin)
+):
+    conn = get_conn()
+    try:
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT u.UserId, r.RoleName
+            FROM Users u
+            JOIN Roles r ON u.RoleId = r.RoleId
+            WHERE u.UserId = ?
+        """, (user_id,))
+        user = cursor.fetchone()
+
+        if not user:
+            raise HTTPException(status_code=404, detail="Không tìm thấy user")
+
+        if user.RoleName != "Receptionist":
+            raise HTTPException(
+                status_code=400,
+                detail="Chỉ được gán khách sạn cho tài khoản Receptionist"
+            )
+
+        cursor.execute("""
+            SELECT HotelId
+            FROM Hotels
+            WHERE HotelId = ?
+        """, (data.hotel_id,))
+        hotel = cursor.fetchone()
+
+        if not hotel:
+            raise HTTPException(status_code=404, detail="Không tìm thấy khách sạn")
+
+        cursor.execute("""
+            UPDATE Users
+            SET HotelId = ?, UpdatedAt = GETDATE()
+            WHERE UserId = ?
+        """, (data.hotel_id, user_id))
+
+        conn.commit()
+
+        return {
+            "message": "Gán khách sạn cho receptionist thành công",
+            "user_id": user_id,
+            "hotel_id": data.hotel_id
+        }
     finally:
         conn.close()
