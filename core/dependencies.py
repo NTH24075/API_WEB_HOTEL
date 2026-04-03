@@ -6,32 +6,50 @@ from services.auth_utils import decode_access_token
 security = HTTPBearer()
 
 
-def get_current_user(ycredentials:HTTPAuthorizationCredentials=Depends(security)):
+def get_current_user(
+    ycredentials: HTTPAuthorizationCredentials = Depends(security)
+):
     token = ycredentials.credentials
     payload = decode_access_token(token)
 
     if not payload:
         raise HTTPException(
-            status_code = status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token khong hop le"
         )
+
     user_id = payload.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token khong co user_id"
+        )
+
     conn = get_conn()
     try:
         curs = conn.cursor()
-        curs.execute("select u.UserId, u.FullName, u.Email, u.Phone, u.CitizenId, u.Address, u.AvatarUrl, u.AvatarUrl, u.Status, r.RoleName " \
-                    "from Users u " \
-                    "join Roles r On u.RoleId = r.RoleId " \
-                    "where u.UserId = ? ", (user_id,))
+        curs.execute(
+            "select u.UserId, u.FullName, u.Email, u.Phone, u.CitizenId, "
+            "u.Address, u.AvatarUrl, u.Status, r.RoleName "
+            "from Users u "
+            "join Roles r On u.RoleId = r.RoleId "
+            "where u.UserId = ? ",
+            (user_id,)
+        )
         row = curs.fetchone()
+
         if not row:
             raise HTTPException(status_code=404, detail="Khong tim thay user")
 
         if row.Status != "Active":
-            raise HTTPException(status_code=403,detail=f"Tai khoan dang o trang thai{row.Status}")
+            raise HTTPException(
+                status_code=403,
+                detail=f"Tai khoan dang o trang thai {row.Status}"
+            )
+
         return {
-            "user_id":row.UserId,
-            "full_name":row.FullName,
+            "user_id": row.UserId,
+            "full_name": row.FullName,
             "email": row.Email,
             "phone": row.Phone,
             "citizen_id": row.CitizenId,
@@ -43,10 +61,29 @@ def get_current_user(ycredentials:HTTPAuthorizationCredentials=Depends(security)
     finally:
         conn.close()
 
-def require_admin(cur_user = Depends(get_current_user)):
-    if cur_user["role_name"]!="Admin":
+
+def require_admin(cur_user=Depends(get_current_user)):
+    if cur_user["role_name"] != "Admin":
         raise HTTPException(
             status_code=403,
             detail="Chi Admin moi co quyen truy cap"
+        )
+    return cur_user
+
+
+def require_receptionist(cur_user=Depends(get_current_user)):
+    if cur_user["role_name"] != "Receptionist":
+        raise HTTPException(
+            status_code=403,
+            detail="Chi Receptionist moi co quyen truy cap"
+        )
+    return cur_user
+
+
+def require_guest(cur_user=Depends(get_current_user)):
+    if cur_user["role_name"] != "Guest":
+        raise HTTPException(
+            status_code=403,
+            detail="Chi Guest moi co quyen truy cap"
         )
     return cur_user
