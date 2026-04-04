@@ -1,9 +1,10 @@
 import os
 from typing import Optional
+from warnings import filters
 
 import requests
 from dotenv import load_dotenv
-from fastapi import HTTPException
+from fastapi import HTTPException, params
 
 from core.database import get_conn
 
@@ -23,6 +24,21 @@ def normalize_nullable_text(value, use_placeholder: bool = False):
 
     return text
 
+def normalize_star_rating(value, default: float = 3.0):
+    if value is None:
+        return default
+
+    try:
+        rating = float(value)
+
+        if rating < 1:
+            return 1.0
+        if rating > 5:
+            return 5.0
+
+        return round(rating, 1)
+    except (TypeError, ValueError):
+        return default
 
 def geocode_city(city: str):
     if not GEOAPIFY_API_KEY:
@@ -105,7 +121,11 @@ def search_hotels_from_geoapify(city: str, max_results: int = 10):
             "phone": contact.get("phone"),
             "email": contact.get("email"),
             "thumbnail_url": None,
-            "source": "Geoapify"
+            "source": "Geoapify",
+            "star_rating": normalize_star_rating(
+                props.get("stars") or raw.get("stars") or raw.get("hotel_stars"),
+                3.0
+            )
         })
 
     return {
@@ -331,7 +351,7 @@ def import_hotels_by_city_to_db(
                     address,
                     hotel["latitude"],
                     hotel["longitude"],
-                    None,
+                    hotel["star_rating"],
                     phone,
                     email,
                     thumbnail_url,
@@ -433,12 +453,12 @@ def search_hotels_from_db(filters):
             params.append(f"%{normalized_hotel_name}%")
 
         if filters.min_rating is not None:
-            sql += " AND rv.AverageRating IS NOT NULL AND rv.AverageRating >= ? "
+            sql += " AND h.StarRating IS NOT NULL AND h.StarRating >= ? "
             params.append(filters.min_rating)
 
-        if filters.min_review_count is not None:
-            sql += " AND rv.ReviewCount IS NOT NULL AND rv.ReviewCount >= ? "
-            params.append(filters.min_review_count)
+        if filters.max_rating is not None:
+            sql += " AND h.StarRating IS NOT NULL AND h.StarRating <= ? "
+            params.append(filters.max_rating)
 
         if filters.source:
             sql += " AND LOWER(ISNULL(h.Source, '')) = LOWER(?) "
@@ -477,7 +497,7 @@ def search_hotels_from_db(filters):
         if filters.sort_by == "price_desc":
             sql += " ORDER BY CASE WHEN ro.MinPrice IS NULL THEN 1 ELSE 0 END, ro.MinPrice DESC, h.HotelId DESC "
         elif filters.sort_by == "rating_desc":
-            sql += " ORDER BY CASE WHEN rv.AverageRating IS NULL THEN 1 ELSE 0 END, rv.AverageRating DESC, rv.ReviewCount DESC, h.HotelId DESC "
+            sql += " ORDER BY CASE WHEN h.StarRating IS NULL THEN 1 ELSE 0 END, h.StarRating DESC, h.HotelId DESC "
         elif filters.sort_by == "newest":
             sql += " ORDER BY h.CreatedAt DESC, h.HotelId DESC "
         else:
@@ -516,7 +536,7 @@ def search_hotels_from_db(filters):
                 "min_price": filters.min_price,
                 "max_price": filters.max_price,
                 "min_rating": filters.min_rating,
-                "min_review_count": filters.min_review_count,
+                "max_rating": filters.max_rating,
                 "min_capacity": filters.min_capacity,
                 "min_available_quantity": filters.min_available_quantity,
                 "source": filters.source,

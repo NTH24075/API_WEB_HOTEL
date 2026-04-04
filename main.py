@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
@@ -20,6 +21,9 @@ from api.admin_users import router as admin_users_router
 from api.user_account import router as user_account_router
 from api.booking_hotel import hotel_router, review_router
 from api.receptionist_api import router as receptionist_router
+from api.admin_booking_api import router as admin_booking_router
+
+
 
 # ===== INIT APP =====
 app = FastAPI(title="Hotel Management API")
@@ -51,7 +55,8 @@ app.include_router(admin_hotels_router)    # admin quản lý hotel
 app.include_router(user_account_router)
 app.include_router(hotel_router)
 app.include_router(review_router)
-app.include_router(receptionist_router)    # approved delete request from user
+app.include_router(receptionist_router)  
+app.include_router(admin_booking_router)  # approved delete request from user
 
 # ===== UI ROUTES =====
 
@@ -119,4 +124,13 @@ def hotel_detail_page(
             "adults": adults,
             "mapbox_token": MAPBOX_TOKEN,
         },
+    )
+#--- Admin hotel management UI
+
+@app.get("/admin/hotels-page", response_class=HTMLResponse)
+def admin_hotels_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="admin/admin_hotel.html",
+        context={}
     )

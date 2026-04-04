@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Hotel Dashboard</title>
+
+  <!-- CSS của trang admin hotel -->
+  <link rel="stylesheet" href="/static/css/admin/admin_hotel.css" />
+</head>
+<body>
+  <!-- =========================
+       TOPBAR
+  ========================== -->
+  <header class="admin-topbar">
+    <div>
+      <p class="topbar-kicker">StayBook Admin</p>
+      <h1>Quản lí khách sạn</h1>
+    </div>
+
+    <div class="topbar-actions">
+      <span id="adminNameBadge" class="admin-badge">Admin</span>
+      <button id="logoutBtn" class="ghost-btn" type="button">Đăng xuất</button>
+    </div>
+  </header>
+
+  <!-- =========================
+       MAIN LAYOUT
+  ========================== -->
+  <main class="dashboard-wrap">
+
+    <!-- =========================
+         CỘT TRÁI: IMPORT HOTEL
+    ========================== -->
+    <section class="left-column card">
+      <div class="section-head">
+        <h2>Import khách sạn</h2>
+        <p>Import khách sạn theo thành phố từ Geoapify vào database.</p>
+      </div>
+
+      <!-- Form import -->
+      <form id="importHotelForm" class="stack-form">
+        <div class="field-group">
+          <label for="importCity">Tên thành phố</label>
+          <input id="importCity" type="text" placeholder="Ví dụ: Hà Nội" required />
+        </div>
+
+        <div class="field-group">
+          <label for="importMaxResults">Số lượng tối đa</label>
+          <input id="importMaxResults" type="number" min="1" max="30" value="10" required />
+        </div>
+
+        <button type="submit" class="primary-btn full-btn">Import khách sạn</button>
+      </form>
+
+      <div class="mini-divider"></div>
+
+      <!-- Kết quả import -->
+      <div class="section-head small-head">
+        <h3>Kết quả import</h3>
+      </div>
+      <div id="importResultBox" class="info-box empty-state">
+        Chưa có dữ liệu import.
+      </div>
+    </section>
+
+    <!-- =========================
+         CỘT PHẢI: SEARCH + TABLE
+    ========================== -->
+    <section class="right-column card rounded-panel">
+      <div class="section-head">
+        <h2>Tìm kiếm khách sạn</h2>
+        <p>Lọc khách sạn theo dữ liệu hiện có trong database.</p>
+      </div>
+
+      <!-- Form search -->
+      <form id="searchHotelForm" class="search-grid">
+        <div class="field-group">
+          <label for="searchCity">Thành phố</label>
+          <input id="searchCity" type="text" placeholder="Nhập thành phố" />
+        </div>
+
+        <div class="field-group">
+          <label for="searchHotelName">Tên khách sạn</label>
+          <input id="searchHotelName" type="text" placeholder="Nhập tên khách sạn" />
+        </div>
+
+        <div class="field-group">
+          <label for="searchMinPrice">Giá tối thiểu</label>
+          <input id="searchMinPrice" type="number" min="0" placeholder="Ví dụ: 500000" />
+        </div>
+
+        <div class="field-group">
+          <label for="searchMaxPrice">Giá tối đa</label>
+          <input id="searchMaxPrice" type="number" min="0" placeholder="Ví dụ: 2000000" />
+        </div>
+
+        <div class="field-group">
+            <label for="searchMinRating">Hạng sao tối thiểu</label>
+            <input id="searchMinRating" type="number" min="1" max="5" step="0.1" placeholder="Ví dụ: 3" />
+        </div>
+
+        <div class="field-group">
+            <label for="searchMaxRating">Hạng sao tối đa</label>
+            <input id="searchMaxRating" type="number" min="1" max="5" step="0.1" placeholder="Ví dụ: 5" />
+        </div>
+
+        <div class="field-group">
+          <label for="searchMinCapacity">Sức chứa tối thiểu</label>
+          <input id="searchMinCapacity" type="number" min="1" placeholder="Ví dụ: 2" />
+        </div>
+
+        <div class="field-group">
+          <label for="searchMinAvailableQuantity">Số phòng trống tối thiểu</label>
+          <input id="searchMinAvailableQuantity" type="number" min="0" placeholder="Ví dụ: 1" />
+        </div>
+
+        <div class="field-group">
+          <label for="searchSource">Nguồn dữ liệu</label>
+          <input id="searchSource" type="text" value="Geoapify" readonly />
+        </div>
+
+        <div class="field-group">
+          <label for="searchSortBy">Sắp xếp</label>
+          <select id="searchSortBy">
+            <option value="price_asc">Giá tăng dần</option>
+            <option value="price_desc">Giá giảm dần</option>
+            <option value="rating_desc">Rating giảm dần</option>
+            <option value="newest">Mới nhất</option>
+          </select>
+        </div>
+
+        <div class="search-actions">
+          <button type="submit" class="primary-btn">Tìm kiếm</button>
+          <button type="button" id="resetSearchBtn" class="ghost-btn">Reset</button>
+        </div>
+      </form>
+
+      <!-- Header kết quả -->
+      <div class="result-head">
+        <h3>Danh sách khách sạn</h3>
+        <span id="resultCount" class="result-count">0 kết quả</span>
+      </div>
+
+      <!-- Bảng khách sạn -->
+      <div class="request-table-wrap">
+        <table class="request-table">
+          <thead>
+            <tr>
+                <th>Hotel ID</th>
+                <th>Tên khách sạn</th>
+                <th>Thành phố</th>
+                <th>Giá thấp nhất</th>
+                <th>Hạng sao</th>
+                <th>Nguồn</th>
+                <th></th>
+                </tr>
+          </thead>
+          <tbody id="hotelTableBody">
+            <tr>
+              <td colspan="7" class="table-empty">Đang tải dữ liệu...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Phân trang -->
+      <div id="paginationWrap" class="pagination-wrap hidden">
+        <button id="prevPageBtn" class="ghost-btn" type="button">← Trang trước</button>
+        <div id="paginationNumbers" class="pagination-numbers"></div>
+        <button id="nextPageBtn" class="ghost-btn" type="button">Trang sau →</button>
+      </div>
+    </section>
+
+    <!-- =========================
+         PHẦN GHI CHÚ / PLACEHOLDER
+    ========================== -->
+    <section class="bottom-column card report-placeholder">
+      <h2>Ghi chú</h2>
+      <p>Admin có thể import, tìm kiếm và xóa khách sạn tại đây.</p>
+    </section>
+  </main>
+
+  <!-- =========================
+       MODAL CHI TIẾT HOTEL
+  ========================== -->
+  <div id="detailOverlay" class="overlay hidden">
+    <div class="floating-panel">
+      <button id="closeDetailBtn" class="close-btn" type="button">×</button>
+
+      <div class="floating-panel-body">
+        <div class="detail-top">
+          <h3>Chi tiết khách sạn</h3>
+          <span id="detailSource" class="status-chip">Nguồn</span>
+        </div>
+
+        <div class="detail-block">
+          <h4>Thông tin khách sạn</h4>
+          <div id="detailHotelInfo" class="detail-grid"></div>
+        </div>
+
+        <div class="detail-block">
+          <h4>Địa chỉ</h4>
+          <p id="detailAddress" class="reason-box">—</p>
+        </div>
+
+        <div class="detail-actions">
+          <button id="deleteHotelBtn" class="danger-btn" type="button">Xóa khách sạn</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================
+       MODAL XÁC NHẬN XÓA
+  ========================== -->
+  <div id="confirmOverlay" class="overlay hidden">
+    <div class="confirm-panel">
+      <h3>Xác nhận xóa khách sạn</h3>
+      <p id="confirmMessage">Bạn có chắc muốn xóa khách sạn này không?</p>
+      <div class="confirm-actions">
+        <button id="confirmCancelBtn" class="ghost-btn" type="button">Hủy</button>
+        <button id="confirmOkBtn" class="danger-btn" type="button">Xóa</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================
+       TOAST THÔNG BÁO
+  ========================== -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- JS của trang admin hotel -->
+  <script src="/static/js/admin/admin_hotel.js"></script>
+</body>
+</html>
