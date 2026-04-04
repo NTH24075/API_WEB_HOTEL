@@ -1,6 +1,4 @@
-from fastapi import APIRouter, Query, HTTPException, Request
-from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
+from fastapi import APIRouter, Query, HTTPException
 from pydantic import BaseModel
 from core.database import get_conn, query_all
 import traceback
@@ -17,7 +15,6 @@ class FavoritePayload(BaseModel):
     hotel_id: str
 
 router = APIRouter()
-templates = Jinja2Templates(directory="templates")
 
 
 def _get_or_create_city_id(cursor, hotel: dict) -> int:
@@ -156,32 +153,6 @@ def api_hotel_detail(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/hotels/{hotel_id}", response_class=HTMLResponse)
-def hotel_detail_page(
-    request: Request,
-    hotel_id: str,
-    check_in: str = Query("2026-04-08"),
-    adults: int = Query(2, ge=1, le=9),
-):
-    try:
-        hotel = get_hotel_detail_payload(
-            hotel_id=hotel_id,
-            check_in=check_in,
-            adults=adults,
-        )
-        return templates.TemplateResponse(
-            request=request,
-            name="hotel_detail.html",
-            context={
-                "hotel": hotel,
-                "hotel_id": hotel_id,
-                "check_in": check_in,
-                "adults": adults,
-            }
-        )
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/api/favorites")
