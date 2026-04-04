@@ -1,3 +1,4 @@
+<!-- admin_user.html -->
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -7,14 +8,25 @@
   <link rel="stylesheet" href="/static/css/user/admin_user.css" />
 </head>
 <body>
-  <header class="admin-topbar">
-    <div>
-      <p class="topbar-kicker">StayBook Admin</p>
-      <h1>Quản lí tài khoản người dùng</h1>
+  <header class="site-topbar">
+    <div class="topbar-left">
+      <a href="/auth-page" class="brand">StayBook</a>
+      <nav class="topbar-nav">
+        <a href="/auth-page">Khách sạn</a>
+        <a href="#">Chuyến đi của tôi</a>
+        <a href="#">Hỗ trợ</a>
+      </nav>
     </div>
-    <div class="topbar-actions">
+
+    <div class="topbar-right">
       <span id="adminNameBadge" class="admin-badge">Admin</span>
-      <button id="logoutBtn" class="ghost-btn">Đăng xuất</button>
+      <button id="logoutBtn" class="logout-btn" type="button">Đăng xuất</button>
+    </div>
+  </header>
+
+  <header class="admin-topbar page-head">
+    <div>
+      <h1 style="padding-top: 13px;">Quản lí tài khoản người dùng</h1>
     </div>
   </header>
 
@@ -24,6 +36,7 @@
         <h2>Luồng update thông tin của user</h2>
         <p>Chỉ hiện sự kiện user đã cập nhật, không hiện dữ liệu chi tiết.</p>
       </div>
+
       <div id="updateLogsList" class="simple-feed empty-state">
         Chưa có log cập nhật.
       </div>
@@ -71,7 +84,8 @@
 
   <div id="detailOverlay" class="overlay hidden">
     <div class="floating-panel">
-      <button id="closeDetailBtn" class="close-btn">×</button>
+      <button id="closeDetailBtn" class="close-btn" type="button">×</button>
+
       <div class="floating-panel-body">
         <div class="detail-top">
           <h3>Thông tin chi tiết request xóa tài khoản</h3>
@@ -89,8 +103,8 @@
         </div>
 
         <div class="detail-actions" id="detailActions">
-          <button id="approveBtn" class="primary-btn">Approve</button>
-          <button id="rejectBtn" class="danger-btn">Reject</button>
+          <button id="approveBtn" class="primary-btn" type="button">Approve</button>
+          <button id="rejectBtn" class="danger-btn" type="button">Reject</button>
         </div>
       </div>
     </div>

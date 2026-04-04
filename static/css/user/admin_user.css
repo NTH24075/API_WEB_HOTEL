@@ -1,10 +1,14 @@
+/* admin_user.css */
 :root {
-  --bg: #f3f4f6;
+  --bg: #f5f7fb;
+  --bg-soft: #eef2f7;
   --surface: #ffffff;
+  --surface-soft: #fbfcfe;
   --text: #111827;
   --muted: #6b7280;
   --line: #d6dbe3;
   --primary: #16384f;
+  --primary-dark: #102b3d;
   --primary-soft: #edf4f8;
   --danger: #b42318;
   --danger-soft: #fef3f2;
@@ -12,42 +16,113 @@
   --success-soft: #ecfdf3;
   --warning: #b54708;
   --warning-soft: #fffaeb;
-  --shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+  --shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+  --shadow-strong: 0 24px 64px rgba(15, 23, 42, 0.16);
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
+
+html,
 body {
   margin: 0;
-  font-family: Arial, Helvetica, sans-serif;
-  background: var(--bg);
-  color: var(--text);
+  padding: 0;
 }
 
-button { font: inherit; }
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  background: linear-gradient(180deg, #eef2f7 0%, #f8fafc 100%);
+  color: var(--text);
+  min-height: 100vh;
+}
 
-.admin-topbar {
+body.modal-open {
+  overflow: hidden;
+}
+
+button {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ===== TOPBAR GIỐNG USER ===== */
+.site-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  min-height: 72px;
   display: flex;
+  align-items: center;
   justify-content: space-between;
+  gap: 20px;
+  padding: 0 32px;
+  background: var(--primary);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  min-width: 0;
+}
+
+.brand {
+  color: #ffffff;
+  text-decoration: none;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.topbar-nav {
+  display: flex;
   align-items: center;
   gap: 20px;
-  padding: 24px 32px 12px;
+  flex-wrap: wrap;
 }
 
-.admin-topbar h1 {
-  margin: 4px 0 0;
-  font-size: 32px;
+.topbar-nav a {
+  color: #dbe7f3;
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 500;
+  transition: color 0.2s ease;
 }
 
-.topbar-kicker {
-  margin: 0;
-  color: var(--muted);
-  font-size: 13px;
+.topbar-nav a:hover {
+  color: #ffffff;
 }
 
-.topbar-actions {
+.topbar-right {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-shrink: 0;
+}
+
+.logout-btn {
+  border: none;
+  background: #ffffff;
+  color: var(--primary);
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
+}
+
+.logout-btn:hover {
+  opacity: 0.94;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.16);
 }
 
 .admin-badge,
@@ -64,28 +139,32 @@ button { font: inherit; }
   color: var(--primary);
 }
 
-.ghost-btn,
-.filter-btn,
-.primary-btn,
-.danger-btn,
-.view-btn {
-  border-radius: 12px;
-  cursor: pointer;
-  transition: 0.2s ease;
+/* ===== PAGE HEAD ===== */
+.page-head {
+  padding-top: 28px;
 }
 
-.ghost-btn {
-  border: 1px solid var(--line);
-  background: #fff;
-  padding: 10px 16px;
+.admin-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 0 32px 10px;
 }
 
-.ghost-btn:hover,
-.filter-btn:hover,
-.view-btn:hover {
-  transform: translateY(-1px);
+.topbar-kicker {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
 }
 
+.admin-topbar h1 {
+  margin: 4px 0 0;
+  font-size: 34px;
+  line-height: 1.15;
+}
+
+/* ===== LAYOUT ===== */
 .dashboard-wrap {
   display: grid;
   grid-template-columns: 340px 1fr;
@@ -135,6 +214,7 @@ button { font: inherit; }
   line-height: 1.5;
 }
 
+/* ===== FEED ===== */
 .simple-feed {
   margin-top: 24px;
   display: flex;
@@ -142,6 +222,7 @@ button { font: inherit; }
   gap: 14px;
 }
 
+.log-item,
 .feed-item {
   padding: 14px 16px;
   border: 1px solid var(--line);
@@ -149,21 +230,35 @@ button { font: inherit; }
   background: #fafafa;
 }
 
+.log-title,
 .feed-item strong {
   display: block;
   margin-bottom: 6px;
+  line-height: 1.45;
 }
 
+.log-sub,
 .feed-time {
   color: var(--muted);
   font-size: 13px;
+  line-height: 1.5;
 }
 
+/* ===== FILTER ===== */
 .filter-row {
   display: flex;
   gap: 10px;
   margin: 24px 0 18px;
   flex-wrap: wrap;
+}
+
+.filter-btn,
+.primary-btn,
+.danger-btn,
+.view-btn {
+  border-radius: 12px;
+  cursor: pointer;
+  transition: 0.2s ease;
 }
 
 .filter-btn {
@@ -172,12 +267,18 @@ button { font: inherit; }
   padding: 10px 16px;
 }
 
+.filter-btn:hover,
+.view-btn:hover {
+  transform: translateY(-1px);
+}
+
 .filter-btn.active {
   background: var(--primary);
   color: #fff;
   border-color: var(--primary);
 }
 
+/* ===== TABLE ===== */
 .request-table-wrap {
   overflow-x: auto;
 }
@@ -230,6 +331,11 @@ button { font: inherit; }
   padding: 28px 12px;
 }
 
+.report-placeholder h2 {
+  margin: 0 0 8px;
+}
+
+/* ===== MODAL ===== */
 .overlay {
   position: fixed;
   inset: 0;
@@ -241,7 +347,9 @@ button { font: inherit; }
   padding: 24px;
 }
 
-.overlay.hidden { display: none; }
+.overlay.hidden {
+  display: none;
+}
 
 .floating-panel {
   position: relative;
@@ -328,8 +436,13 @@ button { font: inherit; }
   font-weight: 700;
 }
 
-.primary-btn { background: var(--primary); }
-.danger-btn { background: var(--danger); }
+.primary-btn {
+  background: var(--primary);
+}
+
+.danger-btn {
+  background: var(--danger);
+}
 
 .primary-btn:disabled,
 .danger-btn:disabled {
@@ -337,10 +450,7 @@ button { font: inherit; }
   cursor: not-allowed;
 }
 
-.report-placeholder h2 {
-  margin: 0 0 8px;
-}
-
+/* ===== RESPONSIVE ===== */
 @media (max-width: 980px) {
   .dashboard-wrap {
     grid-template-columns: 1fr;
@@ -352,5 +462,78 @@ button { font: inherit; }
 
   .detail-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .site-topbar {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .admin-topbar,
+  .dashboard-wrap {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .topbar-left {
+    gap: 18px;
+  }
+
+  .brand {
+    font-size: 24px;
+  }
+}
+
+@media (max-width: 760px) {
+  .site-topbar {
+    min-height: auto;
+    padding: 14px 18px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .topbar-left {
+    width: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .topbar-nav {
+    width: 100%;
+    gap: 12px;
+  }
+
+  .topbar-right {
+    width: 100%;
+  }
+
+  .logout-btn {
+    width: 100%;
+  }
+
+  .admin-topbar,
+  .dashboard-wrap {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .admin-topbar h1 {
+    font-size: 28px;
+  }
+
+  .rounded-panel,
+  .bottom-column,
+  .floating-panel {
+    border-radius: 22px;
+  }
+}
+
+@media (max-width: 480px) {
+  .topbar-nav a {
+    font-size: 14px;
   }
 }
