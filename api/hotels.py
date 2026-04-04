@@ -2,7 +2,7 @@ from fastapi import APIRouter, Query, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
-from core.database import get_conn
+from core.database import get_conn, query_all
 import traceback
 import threading
 from services.amadeus_service import (
@@ -233,3 +233,48 @@ def add_favorite(payload: FavoritePayload):
     finally:
         if conn:
             conn.close()
+
+@router.get("/api/amenities")
+def api_amenities():
+    """Trả về danh sách amenities từ bảng Services."""
+    try:
+        rows = query_all(
+            "SELECT ServiceId, ServiceName, IconEmoji, Description "
+            "FROM Services WHERE IsActive = 1 ORDER BY ServiceId"
+        )
+        return [
+            {
+                "id": r["ServiceId"],
+                "name": r["ServiceName"],
+                "icon": r.get("IconEmoji") or "",
+                "description": r.get("Description") or "",
+            }
+            for r in rows
+        ]
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/api/weather")
+def api_weather(
+    lat: float | None = Query(None),
+    lon: float | None = Query(None),
+    city: str | None = Query(None),
+    city_code: str | None = Query(None),
+    check_in: str | None = Query(None),
+    lang: str = Query("vi"),
+):
+    """Proxy thời tiết — giấu API key khỏi frontend."""
+    try:
+        return get_weather_forecast_3days(
+            lat=lat,
+            lon=lon,
+            city=city,
+            city_code=city_code,
+            check_in=check_in,
+            lang=lang,
+        )
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))

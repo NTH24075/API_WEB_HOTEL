@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from datetime import datetime
-from core.database import get_conn
+from core.database import get_db
 from core.dependencies import get_current_user
 from schemas.roomoffer_schemas import (
     CurrentUserAndRoomOfferResponse,
@@ -21,7 +21,7 @@ def create_booking(
         children: int = 0,
         number_of_rooms: int = 1,
         special_request: str = None,
-        db=Depends(get_conn),
+        db=Depends(get_db),
         current_user: dict = Depends(get_current_user)
 ):
     user_id = current_user.get("UserId") or current_user.get("user_id")
@@ -161,7 +161,7 @@ def create_booking(
 def add_services_to_booking(
         booking_id: int,
         service_items: list[dict],  # [{"hotelservice_id": 1, "quantity": 2}]
-        db=Depends(get_conn),
+        db=Depends(get_db),
         current_user: dict = Depends(get_current_user)
 ):
     cursor = db.cursor()
@@ -293,7 +293,7 @@ def add_services_to_booking(
 @hotel_router.delete("/delete-booking/{booking_id}")
 def delete_booking(
         booking_id: int,
-        db=Depends(get_conn),
+        db=Depends(get_db),
         current_user: dict = Depends(get_current_user)
 ):
     cursor = db.cursor()
@@ -362,7 +362,7 @@ def delete_booking(
 def create_payment(
         booking_id: int,
         payment_method: str = Query("Cash", include_in_schema=False),
-        db=Depends(get_conn),
+        db=Depends(get_db),
         current_user: dict = Depends(get_current_user)
 ):
     cursor = db.cursor()
@@ -452,7 +452,7 @@ def create_payment(
 @hotel_router.post("/confirm-payment/{payment_id}")
 def confirm_payment(
         payment_id: int,
-        db=Depends(get_conn),
+        db=Depends(get_db),
         current_user: dict = Depends(get_current_user)
 ):
     cursor = db.cursor()
@@ -548,7 +548,7 @@ def confirm_payment(
 @hotel_router.delete("/delete-payment/{payment_id}")
 def delete_payment(
         payment_id: int,
-        db=Depends(get_conn),
+        db=Depends(get_db),
         current_user: dict = Depends(get_current_user)
 ):
     cursor = db.cursor()
@@ -629,7 +629,7 @@ def delete_payment(
 
 @hotel_router.get("/my-paid-bookings")
 def get_my_paid_bookings(
-        db=Depends(get_conn),
+        db=Depends(get_db),
         current_user: dict = Depends(get_current_user)
 ):
     cursor = db.cursor()
@@ -750,7 +750,7 @@ review_router = APIRouter(prefix="/api/reviews", tags=["Reviews"])
 @review_router.post("/create")
 def create_review(
         payload: CreateReviewRequest,
-        db=Depends(get_conn),
+        db=Depends(get_db),
         current_user: dict = Depends(get_current_user)
 ):
     user_id = current_user.get("UserId") or current_user.get("user_id")

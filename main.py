@@ -18,6 +18,8 @@ from api.admin_hotels import router as admin_hotels_router
 from api.auth import router as auth_router
 from api.admin_users import router as admin_users_router
 from api.user_account import router as user_account_router
+from api.booking_hotel import hotel_router, review_router
+from api.receptionist_api import router as receptionist_router
 
 # ===== INIT APP =====
 app = FastAPI(title="Hotel Management API")
@@ -46,7 +48,10 @@ app.include_router(hotels_router)          # public hotel API (Geoapify)
 app.include_router(auth_router)            # login/register
 app.include_router(admin_users_router)     # admin quản lý user
 app.include_router(admin_hotels_router)    # admin quản lý hotel
-app.include_router(user_account_router)    # approved delete request from user
+app.include_router(user_account_router)
+app.include_router(hotel_router)
+app.include_router(review_router)
+app.include_router(receptionist_router)    # approved delete request from user
 
 # ===== UI ROUTES =====
 
@@ -115,4 +120,3 @@ def hotel_detail_page(
             "mapbox_token": MAPBOX_TOKEN,
         },
     )
-
