@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from datetime import datetime
 from core.database import get_conn
 from core.dependencies import get_current_user
@@ -8,9 +10,19 @@ from schemas.roomoffer_schemas import (
 )
 from datetime import datetime
 from fastapi import Depends, HTTPException
+from fastapi.templating import Jinja2Templates
 
+templates = Jinja2Templates(directory="templates")
 
 hotel_router = APIRouter(prefix="/api/bookinghotels", tags=["Booking And Payment"])
+
+@hotel_router.get("/booking-confirm", response_class=HTMLResponse)
+def booking_confirm_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="booking_confirm.html",
+        context={}
+    )
 
 
 @hotel_router.post("/create-booking/{room_offer_id}")
@@ -141,11 +153,94 @@ def create_booking(
 
         db.commit()
 
+        # 7. Lấy lại full thông tin booking + roomoffer + user
+        detail_query = """
+            SELECT 
+                b.BookingId,
+                b.UserId,
+                b.HotelId,
+                b.OfferId,
+                b.BookingCode,
+                b.CheckInDate,
+                b.CheckOutDate,
+                b.Adults,
+                b.Children,
+                b.NumberOfRooms,
+                b.TotalAmount,
+                b.BookingStatus,
+                b.PaymentStatus,
+                b.SpecialRequest,
+                b.CreatedAt,
+                b.UpdatedAt,
+                b.ActualCheckInTime,
+                b.ActualCheckOutTime,
+
+                r.RoomType,
+                r.Description,
+                r.Capacity,
+                r.PricePerNight,
+                r.AvailableQuantity,
+                r.CheckInDate,
+                r.CheckOutDate,
+                r.CancellationPolicy,
+                r.Amenities,
+                r.ExternalOfferCode,
+
+                u.UserId,
+                u.FullName,
+                u.Email,
+                u.Phone
+            FROM Bookings b
+            JOIN RoomOffers r ON b.OfferId = r.OfferId
+            JOIN Users u ON b.UserId = u.UserId
+            WHERE b.BookingId = ?
+        """
+        cursor.execute(detail_query, (booking_id,))
+        detail = cursor.fetchone()
+
+        if not detail:
+            raise HTTPException(status_code=404, detail="Không lấy được thông tin booking sau khi tạo")
+
         return {
             "message": "Tạo booking thành công",
-            "booking_id": booking_id,
-            "booking_code": booking_code,
-            "total_amount": total_amount
+            "booking": {
+                "booking_id": detail[0],
+                "user_id": detail[1],
+                "hotel_id": detail[2],
+                "offer_id": detail[3],
+                "booking_code": detail[4],
+                "check_in_date": str(detail[5]) if detail[5] else None,
+                "check_out_date": str(detail[6]) if detail[6] else None,
+                "adults": detail[7],
+                "children": detail[8],
+                "number_of_rooms": detail[9],
+                "total_amount": float(detail[10]) if detail[10] is not None else 0,
+                "booking_status": detail[11],
+                "payment_status": detail[12],
+                "special_request": detail[13],
+                "created_at": str(detail[14]) if detail[14] else None,
+                "updated_at": str(detail[15]) if detail[15] else None,
+                "actual_check_in_time": str(detail[16]) if detail[16] else None,
+                "actual_check_out_time": str(detail[17]) if detail[17] else None
+            },
+            "room_offer": {
+                "room_type": detail[18],
+                "description": detail[19],
+                "capacity": detail[20],
+                "price_per_night": float(detail[21]) if detail[21] is not None else 0,
+                "available_quantity": detail[22],
+                "offer_check_in_date": str(detail[23]) if detail[23] else None,
+                "offer_check_out_date": str(detail[24]) if detail[24] else None,
+                "cancellation_policy": detail[25],
+                "amenities": detail[26],
+                "external_offer_code": detail[27]
+            },
+            "user": {
+                "user_id": detail[28],
+                "full_name": detail[29],
+                "email": detail[30],
+                "phone_number": detail[31]
+            }
         }
 
     except HTTPException:
@@ -161,66 +256,67 @@ def create_booking(
 @hotel_router.post("/add-services/{booking_id}")
 def add_services_to_booking(
     booking_id: int,
-    service_items: list[dict],  # [{"hotelservice_id": 1, "quantity": 2}]
+    service_items: list[dict],
     db=Depends(get_conn),
     current_user: dict = Depends(get_current_user)
 ):
     cursor = db.cursor()
 
     try:
-        # 1. Check booking
         cursor.execute("""
-            SELECT TotalAmount
+            SELECT TotalAmount, OfferId
             FROM Bookings
             WHERE BookingId = ?
         """, (booking_id,))
-        
         row = cursor.fetchone()
+
         if not row:
             raise HTTPException(404, "Booking không tồn tại")
 
-        current_total = float(row[0])
-        total_service_cost = 0
-        added_services = []
+        old_total_amount = float(row[0])
 
-        # 2. Validate input
         if not service_items or not isinstance(service_items, list):
             raise HTTPException(400, "service_items phải là list")
 
-        # 3. Loop từng service
-        for index, item in enumerate(service_items, start=1):
+        cursor.execute("""
+            SELECT ISNULL(SUM(TotalPrice), 0)
+            FROM BookingServices
+            WHERE BookingId = ?
+        """, (booking_id,))
+        old_service_total = float(cursor.fetchone()[0] or 0)
 
+        cursor.execute("""
+            DELETE FROM BookingServices
+            WHERE BookingId = ?
+        """, (booking_id,))
+
+        total_service_cost = 0
+        added_services = []
+
+        for index, item in enumerate(service_items, start=1):
             hotelservice_id = item.get("hotelservice_id")
-            quantity = item.get("quantity", 1)
+            quantity = item.get("quantity", 0)
 
             if hotelservice_id is None:
-                raise HTTPException(
-                    400, f"Thiếu hotelservice_id ở phần tử {index}"
-                )
+                raise HTTPException(400, f"Thiếu hotelservice_id ở phần tử {index}")
 
-            try:
-                hotelservice_id = int(hotelservice_id)
-                quantity = int(quantity)
-            except:
-                raise HTTPException(
-                    400, f"hotelservice_id hoặc quantity sai kiểu ở phần tử {index}"
-                )
+            hotelservice_id = int(hotelservice_id)
+            quantity = int(quantity)
 
-            if quantity <= 0:
-                raise HTTPException(
-                    400, f"quantity phải > 0 ở phần tử {index}"
-                )
+            if quantity < 0:
+                raise HTTPException(400, f"quantity không được âm ở phần tử {index}")
 
-            # 🔥 Lấy giá từ HotelServices (ưu tiên CustomPrice)
+            if quantity == 0:
+                continue
+
             cursor.execute("""
-                SELECT 
+                SELECT
                     hs.CustomPrice,
                     s.Price
                 FROM HotelServices hs
                 JOIN Services s ON hs.ServiceId = s.ServiceId
                 WHERE hs.HotelServiceId = ? AND hs.IsAvailable = 1
             """, (hotelservice_id,))
-
             service = cursor.fetchone()
 
             if not service:
@@ -230,11 +326,9 @@ def add_services_to_booking(
                 )
 
             custom_price, default_price = service
-
-            unit_price = float(custom_price) if custom_price else float(default_price)
+            unit_price = float(custom_price) if custom_price is not None else float(default_price)
             total_price = unit_price * quantity
 
-            # 🔥 Insert dùng HotelServiceId
             cursor.execute("""
                 INSERT INTO BookingServices (
                     BookingId,
@@ -262,8 +356,7 @@ def add_services_to_booking(
                 "total_price": total_price
             })
 
-        # 4. Update Booking
-        new_total = current_total + total_service_cost
+        new_total = old_total_amount - old_service_total + total_service_cost
 
         cursor.execute("""
             UPDATE Bookings
@@ -274,7 +367,7 @@ def add_services_to_booking(
         db.commit()
 
         return {
-            "message": "Thêm dịch vụ thành công",
+            "message": "Cập nhật dịch vụ thành công",
             "booking_id": booking_id,
             "added_services": added_services,
             "added_service_cost": total_service_cost,
@@ -289,6 +382,90 @@ def add_services_to_booking(
         raise HTTPException(500, f"Lỗi hệ thống: {str(e)}")
     finally:
         cursor.close()
+
+
+@hotel_router.get("/available-services/{booking_id}")
+def get_available_services_by_booking(
+    booking_id: int,
+    db=Depends(get_conn),
+    current_user: dict = Depends(get_current_user)
+):
+    cursor = db.cursor()
+    try:
+        cursor.execute("""
+            SELECT b.BookingId, b.HotelId
+            FROM Bookings b
+            WHERE b.BookingId = ?
+        """, (booking_id,))
+        booking = cursor.fetchone()
+
+        if not booking:
+            raise HTTPException(status_code=404, detail="Booking không tồn tại")
+
+        _, hotel_id = booking
+
+        cursor.execute("""
+            SELECT
+                hs.HotelServiceId,
+                hs.HotelId,
+                hs.ServiceId,
+                s.ServiceName,
+                s.Description,
+                CASE
+                    WHEN hs.CustomPrice IS NOT NULL THEN hs.CustomPrice
+                    ELSE s.Price
+                END AS Price,
+                hs.IsAvailable,
+                ISNULL(SUM(bs.Quantity), 0) AS SelectedQuantity
+            FROM HotelServices hs
+            JOIN Services s ON hs.ServiceId = s.ServiceId
+            LEFT JOIN BookingServices bs
+                ON bs.HotelServiceId = hs.HotelServiceId
+               AND bs.BookingId = ?
+            WHERE hs.HotelId = ? AND hs.IsAvailable = 1
+            GROUP BY
+                hs.HotelServiceId,
+                hs.HotelId,
+                hs.ServiceId,
+                s.ServiceName,
+                s.Description,
+                hs.CustomPrice,
+                s.Price,
+                hs.IsAvailable
+            ORDER BY s.ServiceName
+        """, (booking_id, hotel_id))
+
+        rows = cursor.fetchall()
+
+        services = []
+        for row in rows:
+            services.append({
+                "hotelservice_id": row[0],
+                "hotel_id": row[1],
+                "service_id": row[2],
+                "service_name": row[3],
+                "description": row[4],
+                "price": float(row[5]),
+                "is_available": bool(row[6]),
+                "selected_quantity": int(row[7] or 0)
+            })
+
+        return {
+            "booking_id": booking_id,
+            "hotel_id": hotel_id,
+            "services": services
+        }
+
+    finally:
+        cursor.close()
+
+@hotel_router.get("/booking-services-page", response_class=HTMLResponse)
+def booking_services_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="booking_services.html",
+        context={}
+    )
 
 @hotel_router.delete("/delete-booking/{booking_id}")
 def delete_booking(
@@ -359,66 +536,204 @@ def delete_booking(
 
 
 
-@hotel_router.post("/create-payment/{booking_id}")
-def create_payment(
+@hotel_router.get("/payment-page", response_class=HTMLResponse)
+def payment_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="payment_page.html",
+        context={}
+    )
+
+@hotel_router.get("/payment-info/{booking_id}")
+def get_payment_info(
     booking_id: int,
-    payment_method: str = Query("Cash", include_in_schema=False),  
     db=Depends(get_conn),
     current_user: dict = Depends(get_current_user)
 ):
     cursor = db.cursor()
 
     try:
-    
-        # 1. Check booking
-        # ========================
         cursor.execute("""
-            SELECT TotalAmount, PaymentStatus, BookingStatus
-            FROM Bookings
-            WHERE BookingId = ?
+            SELECT
+                b.BookingId,
+                b.BookingCode,
+                b.UserId,
+                b.HotelId,
+                b.OfferId,
+                b.CheckInDate,
+                b.CheckOutDate,
+                b.Adults,
+                b.Children,
+                b.NumberOfRooms,
+                b.TotalAmount,
+                b.BookingStatus,
+                b.PaymentStatus,
+                b.SpecialRequest,
+                u.FullName,
+                u.Email,
+                u.Phone
+            FROM Bookings b
+            JOIN Users u ON b.UserId = u.UserId
+            WHERE b.BookingId = ?
         """, (booking_id,))
-        
-        booking = cursor.fetchone()
+        row = cursor.fetchone()
 
-        if not booking:
+        if not row:
             raise HTTPException(404, "Booking không tồn tại")
 
-        total_amount, payment_status, booking_status = booking
+        return {
+            "booking_id": row[0],
+            "booking_code": row[1],
+            "user_id": row[2],
+            "hotel_id": row[3],
+            "offer_id": row[4],
+            "check_in_date": str(row[5]),
+            "check_out_date": str(row[6]),
+            "adults": row[7],
+            "children": row[8],
+            "number_of_rooms": row[9],
+            "total_amount": float(row[10]),
+            "booking_status": row[11],
+            "payment_status": row[12],
+            "special_request": row[13],
+            "customer_name": row[14],
+            "customer_email": row[15],
+            "customer_phone": row[16]
+        }
 
-        # ========================
-        # 2. Validate trạng thái
-        # ========================
-        if booking_status == "Cancelled":
-            raise HTTPException(400, "Booking đã bị huỷ, không thể thanh toán")
+    finally:
+        cursor.close()
 
-        if payment_status == "Paid":
-            raise HTTPException(400, "Booking đã được thanh toán")
 
-        # ========================
-        # 3. Insert Payment + lấy ID
-        # ========================
+@hotel_router.get("/payment-detail-by-booking/{booking_id}")
+def get_payment_detail_by_booking(
+    booking_id: int,
+    db=Depends(get_conn),
+    current_user: dict = Depends(get_current_user)
+):
+    cursor = db.cursor()
+
+    try:
         cursor.execute("""
-            INSERT INTO Payments (
+            SELECT TOP 1
+                PaymentId,
                 BookingId,
                 Amount,
                 PaymentMethod,
                 PaymentStatus,
                 PaidAt,
-                CreatedAt
-            )
-            OUTPUT INSERTED.PaymentId
-            VALUES (?, ?, ?, ?, GETDATE(), GETDATE())
-        """, (
-            booking_id,
-            total_amount,
-            payment_method,   # luôn = "Cash"
-            "UnPaid"
-        ))
+                CreatedAt,
+                Note
+            FROM Payments
+            WHERE BookingId = ?
+            ORDER BY PaymentId DESC
+        """, (booking_id,))
+        row = cursor.fetchone()
+
+        if not row:
+            raise HTTPException(404, "Booking này chưa có payment")
+
+        return {
+            "payment_id": row[0],
+            "booking_id": row[1],
+            "amount": float(row[2]),
+            "payment_method": row[3],
+            "payment_status": row[4],
+            "paid_at": str(row[5]) if row[5] else None,
+            "created_at": str(row[6]) if row[6] else None,
+            "note": row[7]
+        }
+
+    finally:
+        cursor.close()
+
+
+
+from fastapi import Query, Depends, HTTPException
+
+@hotel_router.post("/create-payment/{booking_id}")
+def create_payment(
+    booking_id: int,
+    payment_method: str = Query("QR", include_in_schema=False),
+    db=Depends(get_conn),
+    current_user: dict = Depends(get_current_user)
+):
+    cursor = db.cursor()
+
+    try:
+        # ========================
+        # 1. Lấy booking
+        # ========================
+        cursor.execute("""
+            SELECT BookingId, TotalAmount, PaymentStatus, BookingStatus
+            FROM Bookings
+            WHERE BookingId = ?
+        """, (booking_id,))
+        booking = cursor.fetchone()
+
+        if not booking:
+            raise HTTPException(status_code=404, detail="Booking không tồn tại")
+
+        booking_id_db, total_amount, payment_status, booking_status = booking
+
+        # ========================
+        # 2. Validate booking
+        # ========================
+        if booking_status == "Cancelled":
+            raise HTTPException(status_code=400, detail="Booking đã bị huỷ, không thể thanh toán")
+
+        if payment_status == "Paid":
+            raise HTTPException(status_code=400, detail="Booking đã được thanh toán")
+
+        # ========================
+        # 3. Check đã có payment unpaid chưa
+        # ========================
+        cursor.execute("""
+            SELECT TOP 1 PaymentId, Amount, PaymentMethod, PaymentStatus, CreatedAt
+            FROM Payments
+            WHERE BookingId = ? AND PaymentStatus = 'UnPaid'
+            ORDER BY PaymentId DESC
+        """, (booking_id,))
+        existing_payment = cursor.fetchone()
+
+        if existing_payment:
+            return {
+                "message": "Booking đã có payment chờ thanh toán",
+                "payment_id": int(existing_payment[0]),
+                "booking_id": booking_id,
+                "amount": float(existing_payment[1]),
+                "payment_method": existing_payment[2],
+                "payment_status": existing_payment[3],
+                "created_at": str(existing_payment[4]) if existing_payment[4] else None
+            }
+
+        # ========================
+        # 4. Tạo payment mới
+        # ========================
+        cursor.execute("""
+    INSERT INTO Payments (
+        BookingId,
+        Amount,
+        PaymentMethod,
+        PaymentStatus,
+        PaidAt,
+        CreatedAt,
+        Note
+    )
+    OUTPUT INSERTED.PaymentId
+    VALUES (?, ?, ?, ?, NULL, GETDATE(), ?)
+""", (
+    booking_id,
+    total_amount,
+    payment_method,
+    "UnPaid",
+    "Thanh toán QR đang chờ xác nhận" if payment_method == "QR" else "Đang chờ xác nhận thanh toán"
+))
 
         payment_id = int(cursor.fetchone()[0])
 
         # ========================
-        # 4. Update Booking
+        # 5. Update trạng thái booking
         # ========================
         cursor.execute("""
             UPDATE Bookings
@@ -436,8 +751,9 @@ def create_payment(
             "message": "Tạo thanh toán thành công",
             "payment_id": payment_id,
             "booking_id": booking_id,
-            "amount": total_amount,
-            "payment_method": payment_method  # luôn là Cash
+            "amount": float(total_amount),
+            "payment_method": payment_method,
+            "payment_status": "UnPaid"
         }
 
     except HTTPException:
@@ -445,7 +761,7 @@ def create_payment(
         raise
     except Exception as e:
         db.rollback()
-        raise HTTPException(500, f"Lỗi hệ thống: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Lỗi hệ thống: {str(e)}")
     finally:
         cursor.close()
 

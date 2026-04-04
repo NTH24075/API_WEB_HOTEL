@@ -13,6 +13,45 @@ load_dotenv()
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
+
+# Lấy thông tin
+@router.get("/me")
+def get_me(
+    db=Depends(get_conn),
+    current_user: dict = Depends(get_current_user)
+):
+    cursor = None
+    try:
+        if not current_user or not isinstance(current_user, dict):
+            raise HTTPException(status_code=401, detail="Token không hợp lệ hoặc chưa đăng nhập")
+
+        user_id = current_user.get("UserId") or current_user.get("user_id")
+
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Không lấy được user_id từ token")
+
+        cursor = db.cursor()
+        cursor.execute("""
+            SELECT UserId, FullName, Email, Phone
+            FROM Users
+            WHERE UserId = ?
+        """, (user_id,))
+        row = cursor.fetchone()
+
+        if not row:
+            raise HTTPException(status_code=404, detail="Không tìm thấy user")
+
+        return {
+            "user_id": row[0],
+            "full_name": row[1],
+            "email": row[2],
+            "phone_number": row[3]   # vẫn giữ tên này cho frontend
+        }
+
+    finally:
+        if cursor:
+            cursor.close()
+
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 
 # Get role id bằng role name

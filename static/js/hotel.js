@@ -579,29 +579,80 @@ function renderSentiments(rating) {
 
 function renderOffers(offers) {
   const wrap = document.getElementById("offers");
-  if (!offers?.length) {
-    wrap.innerHTML = `<div class="offer-card"><div><h3>Chưa có phòng</h3><p class="muted-text">Thử ngày khác.</p></div></div>`;
+
+  if (!offers || offers.length === 0) {
+    wrap.innerHTML = `
+      <div class="offer-card">
+        <div>
+          <h3>Chưa có phòng</h3>
+          <p class="muted-text">Thử ngày khác.</p>
+        </div>
+      </div>
+    `;
     return;
   }
-  wrap.innerHTML = offers.map(o => `
-    <article class="offer-card">
-      <div class="offer-left">
-        <h3>${o.room_type || "Phòng tiêu chuẩn"}</h3>
-        <p>${o.description || ""}</p>
-        <div class="offer-tags">
-          ${o.capacity     ? `<span class="tag">👥 ${o.capacity} người</span>`  : ""}
-          ${o.beds         ? `<span class="tag">🛏 ${o.beds} giường</span>`     : ""}
-          ${o.bed_type     ? `<span class="tag">${o.bed_type}</span>`           : ""}
-          ${o.payment_type ? `<span class="tag">${o.payment_type}</span>`       : ""}
+
+  const hotelId =
+    document.body.dataset.hotelId ||
+    document.body.getAttribute("data-hotel-id") ||
+    window.currentHotelId ||
+    "";
+
+  const checkIn = document.body.dataset.checkIn || "";
+  const checkOut = document.body.dataset.checkOut || "";
+  const adults = document.body.dataset.adults || "2";
+
+  wrap.innerHTML = offers.map(o => {
+    const offerId = o.offer_id || o.offerId || o.id || "";
+
+    const params = new URLSearchParams({
+      offer_id: String(offerId),
+      hotel_id: String(hotelId),
+      room_type: o.room_type || "",
+      price: String(o.price_total || 0),
+      currency: o.currency || "VND",
+      check_in: checkIn,
+      check_out: checkOut,
+      adults: String(adults),
+      children: "0"
+    });
+
+    const url = `/api/bookinghotels/booking-confirm?${params.toString()}`;
+
+    return `
+      <article class="offer-card">
+        <div class="offer-left">
+          <h3>${o.room_type || "Phòng tiêu chuẩn"}</h3>
+          <p>${o.description || ""}</p>
+
+          <div class="offer-tags">
+            ${o.capacity ? `<span class="tag">👥 ${o.capacity} người</span>` : ""}
+            ${o.beds ? `<span class="tag">🛏 ${o.beds} giường</span>` : ""}
+            ${o.bed_type ? `<span class="tag">${o.bed_type}</span>` : ""}
+            ${o.payment_type ? `<span class="tag">${o.payment_type}</span>` : ""}
+          </div>
+
+          <div class="offer-policy">
+            ✅ ${o.cancellation_policy || "Xem chính sách hủy"}
+          </div>
         </div>
-        <div class="offer-policy">✅ ${o.cancellation_policy || "Xem chính sách hủy"}</div>
-      </div>
-      <div class="offer-right">
-        <div class="price-total">${formatMoney(o.price_total, o.currency)}</div>
-        <div class="muted-text" style="font-size:12px">/ đêm · tổng giá</div>
-        <a class="inline-btn">Chọn phòng</a>
-      </div>
-    </article>`).join("");
+
+        <div class="offer-right">
+          <div class="price-total">
+            ${formatMoney(o.price_total || 0, o.currency || "VND")}
+          </div>
+
+          <div class="muted-text" style="font-size:12px">
+            / đêm · tổng giá
+          </div>
+
+          <a class="inline-btn" href="${url}">
+            Chọn phòng
+          </a>
+        </div>
+      </article>
+    `;
+  }).join("");
 }
 
 async function loadHotelDetail() {

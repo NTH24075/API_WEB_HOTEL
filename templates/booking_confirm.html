@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Xác nhận đặt phòng</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #f5f3ee;
+      --card: #ffffff;
+      --line: #ece7df;
+      --line-soft: #f0ece5;
+      --text: #1f2937;
+      --muted: #7b8190;
+      --blue: #2f57c6;
+      --blue-hover: #284aac;
+      --gold: #d5a243;
+      --soft-blue: #eef3ff;
+      --soft-gold: #fbf6ea;
+      --shadow: 0 10px 30px rgba(31, 41, 55, 0.06);
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background:
+        radial-gradient(circle at top left, #faf7f0 0%, #f5f3ee 45%),
+        var(--bg);
+      color: var(--text);
+    }
+
+    a {
+      text-decoration: none;
+    }
+
+    /* ===== TOP NAV ===== */
+    .top-booking-nav {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 40px;
+      min-height: 78px;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+
+    .booking-nav-left,
+    .booking-nav-right {
+      width: 220px;
+      display: flex;
+      align-items: center;
+    }
+
+    .booking-nav-left {
+      justify-content: flex-start;
+    }
+
+    .booking-nav-right {
+      justify-content: flex-end;
+    }
+
+    .brand-text {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 38px;
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: 0.2px;
+      user-select: none;
+    }
+
+    .brand-text .stay {
+      color: var(--blue);
+    }
+
+    .brand-text .book {
+      color: var(--gold);
+      font-style: italic;
+      margin-left: 2px;
+    }
+
+    .booking-nav-center {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 22px;
+    }
+
+    .step-item {
+      display: flex;
+      align-items: center;
+      color: #8b8f9c;
+      font-size: 15px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .step-circle {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #d7d9df;
+      color: #6b7280;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .step-label {
+      margin-left: 10px;
+    }
+
+    .step-line {
+      width: 95px;
+      height: 3px;
+      background: #d7d9df;
+      border-radius: 999px;
+      margin-left: 14px;
+    }
+
+    .step-item.active .step-circle,
+    .step-item.done .step-circle {
+      background: var(--blue);
+      color: #fff;
+      box-shadow: 0 0 0 6px rgba(47, 87, 198, 0.08);
+    }
+
+    .step-item.active .step-label,
+    .step-item.done .step-label {
+      color: var(--blue);
+      font-weight: 700;
+    }
+
+    .step-item.active .step-line,
+    .step-item.done .step-line {
+      background: var(--blue);
+    }
+
+    /* ===== PAGE ===== */
+    .page-wrap {
+      padding: 34px 20px 48px;
+    }
+
+    .container {
+      max-width: 1120px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 18px;
+      padding: 26px;
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      margin-bottom: 22px;
+    }
+
+    .hero-card {
+      padding: 28px;
+      background:
+        linear-gradient(135deg, rgba(47, 87, 198, 0.06), rgba(213, 162, 67, 0.06)),
+        #ffffff;
+    }
+
+    h1 {
+      margin-top: 0;
+      margin-bottom: 10px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 34px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.2;
+    }
+
+    h2 {
+      margin-top: 0;
+      margin-bottom: 18px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 14px;
+      margin: 0;
+      line-height: 1.6;
+    }
+
+    .header-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 18px;
+      margin-top: 22px;
+    }
+
+    .hero-highlight {
+      background: linear-gradient(135deg, var(--soft-blue), #ffffff);
+      border: 1px solid #dfe8ff;
+      border-radius: 18px;
+      padding: 22px;
+    }
+
+    .hero-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--blue);
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .hero-room {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 8px;
+      line-height: 1.3;
+    }
+
+    .hero-sub {
+      color: #4b5563;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .hero-price-box {
+      background: linear-gradient(135deg, var(--soft-gold), #fff);
+      border: 1px solid #f0e4c5;
+      border-radius: 18px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .hero-price-label {
+      font-size: 13px;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: #9a6d17;
+      letter-spacing: 0.4px;
+      margin-bottom: 8px;
+    }
+
+    .hero-price {
+      font-size: 34px;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1.1;
+      margin-bottom: 8px;
+    }
+
+    .hero-price-note {
+      color: #6b7280;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .sections {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 22px;
+      align-items: start;
+    }
+
+    .full-width {
+      grid-column: 1 / -1;
+    }
+
+    .section-title {
+      margin-bottom: 18px;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .section-title small {
+      font-family: "Segoe UI", Arial, sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px 20px;
+    }
+
+    .info-grid.single-column {
+      grid-template-columns: 1fr;
+    }
+
+    .info-row {
+      padding: 14px 16px;
+      border: 1px solid var(--line-soft);
+      border-radius: 14px;
+      background: #fcfbf8;
+      min-height: 68px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .info-row strong {
+      color: #6b7280;
+      font-weight: 700;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .info-row span {
+      color: #111827;
+      font-size: 17px;
+      font-weight: 700;
+      line-height: 1.4;
+      word-break: break-word;
+    }
+
+    .soft-card {
+      background: linear-gradient(180deg, #ffffff 0%, #fcfbf8 100%);
+    }
+
+    .summary-box {
+      background: linear-gradient(180deg, #ffffff 0%, #faf8f4 100%);
+      border: 1px solid #ebe5db;
+      border-radius: 16px;
+      padding: 20px;
+      margin-top: 6px;
+    }
+
+    .summary-top {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .summary-mini {
+      border: 1px solid var(--line-soft);
+      background: #fff;
+      border-radius: 14px;
+      padding: 16px;
+    }
+
+    .summary-mini .label {
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      letter-spacing: 0.4px;
+    }
+
+    .summary-mini .value {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1.2;
+    }
+
+    .total-banner {
+      margin-top: 12px;
+      border-radius: 16px;
+      padding: 18px 20px;
+      background: linear-gradient(135deg, var(--blue), #3f66d1);
+      color: #fff;
+      box-shadow: 0 12px 24px rgba(47, 87, 198, 0.18);
+    }
+
+    .total-banner .label {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 700;
+      opacity: 0.9;
+      margin-bottom: 8px;
+    }
+
+    .total-banner .value {
+      font-size: 34px;
+      font-weight: 800;
+      line-height: 1.15;
+    }
+
+    .status-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 16px;
+    }
+
+    .status-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: fit-content;
+      padding: 10px 14px;
+      background: #fff7ed;
+      color: #b45309;
+      border: 1px solid #f3d9b1;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .status-chip::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      display: inline-block;
+    }
+
+    .action-row {
+      display: flex;
+      gap: 14px;
+      margin-top: 24px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 12px;
+      padding: 13px 20px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+    }
+
+    .btn-back {
+      background: #ffffff;
+      color: var(--blue);
+      border: 1px solid #d9e2fb;
+      box-shadow: 0 8px 18px rgba(47, 87, 198, 0.08);
+    }
+
+    .btn-back:hover {
+      background: #f5f8ff;
+      transform: translateY(-1px);
+      box-shadow: 0 12px 22px rgba(47, 87, 198, 0.12);
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, var(--blue), #3d65d0);
+      color: white;
+      box-shadow: 0 12px 24px rgba(47, 87, 198, 0.18);
+    }
+
+    .btn-success:hover {
+      background: linear-gradient(135deg, var(--blue-hover), #3359c0);
+      transform: translateY(-1px);
+      box-shadow: 0 14px 28px rgba(47, 87, 198, 0.22);
+    }
+
+    .btn-wide {
+      min-width: 180px;
+    }
+
+    .result-box {
+      margin-top: 20px;
+      padding: 18px;
+      border-radius: 14px;
+      background: #faf8f4;
+      border: 1px solid #ebe5db;
+      display: none;
+      line-height: 1.6;
+      font-size: 15px;
+    }
+
+    .note-box {
+      margin-top: 18px;
+      border-radius: 14px;
+      border: 1px dashed #d9d2c5;
+      background: #fcfbf8;
+      padding: 16px 18px;
+      color: #6b7280;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    @media (max-width: 992px) {
+      .top-booking-nav {
+        padding: 16px 18px;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .booking-nav-left,
+      .booking-nav-right {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .booking-nav-center {
+        flex-wrap: wrap;
+        gap: 14px;
+      }
+
+      .step-line {
+        width: 48px;
+      }
+
+      .hero-grid,
+      .sections {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .page-wrap {
+        padding: 18px 12px 30px;
+      }
+
+      .info-grid,
+      .summary-top,
+      .status-row {
+        grid-template-columns: 1fr;
+      }
+
+      .header-actions {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .action-row {
+        flex-direction: column;
+      }
+
+      .btn,
+      .btn-wide {
+        width: 100%;
+      }
+
+      h1 {
+        font-size: 28px;
+      }
+
+      h2 {
+        font-size: 24px;
+      }
+
+      .brand-text {
+        font-size: 32px;
+      }
+
+      .hero-room,
+      .hero-price,
+      .total-banner .value {
+        font-size: 28px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="top-booking-nav">
+    <div class="booking-nav-left">
+      <div class="brand-text">
+        <span class="stay">Stay</span><span class="book">Book</span>
+      </div>
+    </div>
+
+    <div class="booking-nav-center">
+      <div class="step-item active">
+        <div class="step-circle">1</div>
+        <div class="step-label">Thông tin</div>
+        <div class="step-line"></div>
+      </div>
+
+      <div class="step-item">
+        <div class="step-circle">2</div>
+        <div class="step-label">Dịch vụ</div>
+        <div class="step-line"></div>
+      </div>
+
+      <div class="step-item">
+        <div class="step-circle">3</div>
+        <div class="step-label">Thanh toán</div>
+      </div>
+    </div>
+
+    <div class="booking-nav-right"></div>
+  </div>
+
+  <div class="page-wrap">
+    <div class="container">
+      <div class="card hero-card">
+        <div class="header-actions">
+          <div>
+            <h1>Xác nhận đặt phòng</h1>
+            <p class="muted">Kiểm tra kỹ thông tin khách hàng, thông tin phòng và chi phí trước khi tạo booking.</p>
+          </div>
+          <a id="backToHotelDetail" class="btn btn-back btn-wide" href="http://127.0.0.1:8000/hotels">Trở về danh sách khách sạn</a>
+        </div>
+
+        <div class="hero-grid">
+          <div class="hero-highlight">
+            <div class="hero-label">Phòng bạn đang chọn</div>
+            <div class="hero-room" id="room_type_hero">Đang tải...</div>
+            <div class="hero-sub">
+              Thời gian lưu trú từ <strong id="hero_check_in">--</strong> đến <strong id="hero_check_out">--</strong>,
+              tổng cộng <strong id="hero_nights">--</strong> đêm.
+            </div>
+          </div>
+
+          <div class="hero-price-box">
+            <div class="hero-price-label">Tạm tính hiện tại</div>
+            <div class="hero-price" id="hero_total_price">0 ₫</div>
+            <div class="hero-price-note">Mức giá này chưa bao gồm dịch vụ bổ sung sẽ được chọn ở bước tiếp theo.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sections">
+        <div class="card soft-card">
+          <h2 class="section-title">
+            <span>Thông tin khách hàng</span>
+            <small>Thông tin tài khoản đang đăng nhập</small>
+          </h2>
+
+          <div class="info-grid single-column">
+            <div class="info-row">
+              <strong>Họ tên</strong>
+              <span id="user_full_name">Đang tải...</span>
+            </div>
+            <div class="info-row">
+              <strong>Số điện thoại</strong>
+              <span id="user_phone">Đang tải...</span>
+            </div>
+            <div class="info-row">
+              <strong>Email</strong>
+              <span id="user_email">Đang tải...</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card soft-card">
+          <h2 class="section-title">
+            <span>Thông tin phòng</span>
+            <small>Chi tiết lựa chọn hiện tại</small>
+          </h2>
+
+          <div class="info-grid">
+            <div class="info-row">
+              <strong>Loại phòng</strong>
+              <span id="room_type_text">--</span>
+            </div>
+            <div class="info-row">
+              <strong>Tiền tệ</strong>
+              <span id="currency_text">--</span>
+            </div>
+            <div class="info-row">
+              <strong>Check-in</strong>
+              <span id="check_in_text">--</span>
+            </div>
+            <div class="info-row">
+              <strong>Check-out</strong>
+              <span id="check_out_text">--</span>
+            </div>
+            <div class="info-row">
+              <strong>Giá / đêm</strong>
+              <span id="price_text">--</span>
+            </div>
+            <div class="info-row">
+              <strong>Số đêm</strong>
+              <span id="nights_text">--</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card full-width">
+          <h2 class="section-title">
+            <span>Thông tin booking</span>
+            <small>Xác nhận trước khi tiếp tục</small>
+          </h2>
+
+          <div class="summary-box">
+            <div class="summary-top">
+              <div class="summary-mini">
+                <div class="label">Số lượng khách</div>
+                <div class="value"><span id="adults_text">0</span> người lớn / <span id="children_text">0</span> trẻ em</div>
+              </div>
+
+              <div class="summary-mini">
+                <div class="label">Số phòng</div>
+                <div class="value"><span id="number_of_rooms_text">1</span> phòng</div>
+              </div>
+            </div>
+
+            <div class="total-banner">
+              <div class="label">Tổng tiền tạm tính</div>
+              <div class="value" id="estimate_total_text">0 ₫</div>
+            </div>
+
+            <div class="status-row">
+              <div class="summary-mini">
+                <div class="label">Trạng thái booking</div>
+                <div class="status-chip">Chưa tạo</div>
+              </div>
+
+              <div class="summary-mini">
+                <div class="label">Trạng thái thanh toán</div>
+                <div class="status-chip">Unpaid</div>
+              </div>
+            </div>
+
+            <div class="note-box">
+              Sau khi bạn bấm xác nhận, hệ thống sẽ tạo booking và chuyển sang bước chọn dịch vụ bổ sung trước khi thanh toán.
+            </div>
+          </div>
+
+          <div class="action-row">
+            <a id="backButtonBottom" class="btn btn-back btn-wide" href="http://127.0.0.1:8000/hotels">Trở về danh sách khách sạn</a>
+            <button class="btn btn-success btn-wide" onclick="submitBooking()">Xác nhận và tiếp tục</button>
+          </div>
+
+          <div id="resultBox" class="result-box"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+
+    const offerId = params.get("offer_id") || "";
+    const hotelId = params.get("hotel_id") || "";
+    const roomType = params.get("room_type") || "";
+    const checkIn = params.get("check_in") || "";
+    const checkOut = params.get("check_out") || "";
+    const adultsParam = params.get("adults") || "2";
+    const childrenParam = params.get("children") || "0";
+    const numberOfRoomsParam = params.get("number_of_rooms") || "1";
+    const price = Number(params.get("price") || 0);
+    const currency = params.get("currency") || "VND";
+
+    function formatMoney(value) {
+      return new Intl.NumberFormat("vi-VN", {
+        style: "currency",
+        currency: currency,
+        maximumFractionDigits: 0
+      }).format(value || 0);
+    }
+
+    function calcNights(checkInDate, checkOutDate) {
+      const d1 = new Date(checkInDate);
+      const d2 = new Date(checkOutDate);
+      const diff = d2 - d1;
+      return Math.max(1, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+    }
+
+    function updateEstimate() {
+      const numberOfRooms = Number(numberOfRoomsParam || 1);
+      const nights = calcNights(checkIn, checkOut);
+      const total = price * numberOfRooms * nights;
+
+      document.getElementById("estimate_total_text").innerText = formatMoney(total);
+      document.getElementById("hero_total_price").innerText = formatMoney(total);
+      document.getElementById("adults_text").innerText = adultsParam;
+      document.getElementById("children_text").innerText = childrenParam;
+      document.getElementById("number_of_rooms_text").innerText = numberOfRooms;
+    }
+
+    async function loadCurrentUserInfo() {
+      try {
+        const token = localStorage.getItem("access_token");
+
+        if (!token) {
+          throw new Error("Không có access_token trong localStorage");
+        }
+
+        const response = await fetch("/auth/me", {
+          method: "GET",
+          headers: {
+            "Authorization": "Bearer " + token
+          }
+        });
+
+        const rawText = await response.text();
+        let data = {};
+
+        try {
+          data = rawText ? JSON.parse(rawText) : {};
+        } catch {
+          throw new Error(rawText || "Server không trả về JSON");
+        }
+
+        if (!response.ok) {
+          throw new Error(data.detail || "Không lấy được thông tin user");
+        }
+
+        const fullName = data.full_name || "Chưa có";
+        const phone = data.phone_number || "Chưa có";
+        const email = data.email || "Chưa có";
+
+        document.getElementById("user_full_name").innerText = fullName;
+        document.getElementById("user_phone").innerText = phone;
+        document.getElementById("user_email").innerText = email;
+      } catch (error) {
+        document.getElementById("user_full_name").innerText = "Không tải được";
+        document.getElementById("user_phone").innerText = "Không tải được";
+        document.getElementById("user_email").innerText = "Không tải được";
+        console.error("Load user error:", error.message);
+      }
+    }
+
+    document.getElementById("room_type_text").innerText = roomType || "Chưa có";
+    document.getElementById("room_type_hero").innerText = roomType || "Chưa có";
+    document.getElementById("check_in_text").innerText = checkIn || "Chưa có";
+    document.getElementById("check_out_text").innerText = checkOut || "Chưa có";
+    document.getElementById("hero_check_in").innerText = checkIn || "--";
+    document.getElementById("hero_check_out").innerText = checkOut || "--";
+    document.getElementById("price_text").innerText = formatMoney(price);
+    document.getElementById("currency_text").innerText = currency;
+    document.getElementById("nights_text").innerText = calcNights(checkIn, checkOut);
+    document.getElementById("hero_nights").innerText = calcNights(checkIn, checkOut);
+
+    document.getElementById("backToHotelDetail").href = "http://127.0.0.1:8000/hotels";
+    document.getElementById("backButtonBottom").href = "http://127.0.0.1:8000/hotels";
+
+    updateEstimate();
+    loadCurrentUserInfo();
+
+    async function submitBooking() {
+      const resultBox = document.getElementById("resultBox");
+      resultBox.style.display = "block";
+      resultBox.innerHTML = "Đang tạo booking...";
+
+      try {
+        const token = localStorage.getItem("access_token");
+
+        if (!offerId || isNaN(Number(offerId))) {
+          resultBox.innerHTML = `<div style="color:red"><strong>Lỗi:</strong> offer_id không hợp lệ</div>`;
+          return;
+        }
+
+        const query = new URLSearchParams({
+          check_in_date: checkIn,
+          check_out_date: checkOut,
+          adults: Number(adultsParam),
+          children: Number(childrenParam),
+          number_of_rooms: Number(numberOfRoomsParam),
+          special_request: ""
+        });
+
+        const response = await fetch(`/api/bookinghotels/create-booking/${offerId}?${query.toString()}`, {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + token
+          }
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          resultBox.innerHTML = `<div style="color:red"><strong>Lỗi:</strong> ${data.detail || "Không xác định"}</div>`;
+          return;
+        }
+
+        resultBox.innerHTML = `<div style="color:green"><strong>Tạo booking thành công. Đang chuyển sang chọn dịch vụ...</strong></div>`;
+
+        setTimeout(() => {
+          window.location.href = `/api/bookinghotels/booking-services-page?booking_id=${data.booking.booking_id}`;
+        }, 700);
+
+      } catch (error) {
+        resultBox.innerHTML = `<div style="color:red"><strong>Lỗi gọi API:</strong> ${error.message}</div>`;
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 import os
 from typing import Any
-from datetime import datetime, timedelta
+from datetime import datetime
 import httpx
 from dotenv import load_dotenv
 
@@ -18,37 +18,29 @@ OWM_API_KEY = os.getenv("OPENWEATHERMAP_API_KEY") or os.getenv("OPENWEATHER_API_
 OWM_BASE_URL = "https://api.openweathermap.org"
 
 # ── Pool ảnh khách sạn từ Unsplash (public, không cần API key) ────────────────
-# Mỗi ảnh được tag theo loại để tạo gallery đa dạng cho detail page.
-# Dùng seed từ hotel_id để mỗi khách sạn có bộ ảnh riêng, nhất quán giữa các lần load.
-
 _HOTEL_PHOTO_POOL: list[tuple[str, str]] = [
-    # ── Exterior / Pool ──────────────────────────────────────────────────────
     ("1566073771259-6a8506099945", "Hồ bơi ngoài trời"),
     ("1520250497591-112f2f40a3f4", "Khu nghỉ dưỡng"),
     ("1571896349842-33c89424de2d", "Mặt tiền khách sạn"),
-    ("1542314831-068cd1dbfeeb",   "Toàn cảnh resort"),
+    ("1542314831-068cd1dbfeeb", "Toàn cảnh resort"),
     ("1584132967334-10e028bd69f7", "Hồ bơi vô cực"),
-    ("1551882547-ff40c63fe5fa",   "Khu vực ngoài trời"),
+    ("1551882547-ff40c63fe5fa", "Khu vực ngoài trời"),
     ("1582719508461-905c673771fd", "Sảnh đón"),
     ("1455587734955-f54d5b57e8b0", "Không gian xanh"),
-    # ── Room / Interior ──────────────────────────────────────────────────────
     ("1522708323590-d24dbb6b0267", "Phòng nghỉ"),
     ("1618773928121-c32242e63f39", "Phòng Deluxe"),
     ("1631049307264-da0ec9d70304", "Phòng Suite"),
     ("1505693416388-ac5ce068fe85", "Nội thất"),
     ("1540518614846-7eded433c457", "Phòng ngủ"),
-    ("1561501900-3701fa6a0864",   "Không gian phòng"),
+    ("1561501900-3701fa6a0864", "Không gian phòng"),
     ("1587985064135-0366536eab42", "View từ phòng"),
     ("1611892440504-42a792e24d32", "Phòng cao cấp"),
-    # ── Dining / Lobby ───────────────────────────────────────────────────────
     ("1445019980597-93fa8acb246c", "Nhà hàng"),
     ("1414235077428-338989a2e8c0", "Ẩm thực"),
-    ("1559329007-0c8cfd9d3fca",   "Quầy bar"),
+    ("1559329007-0c8cfd9d3fca", "Quầy bar"),
     ("1486325212027-8081e485255e", "Sảnh chính"),
-    # ── Spa / Gym ────────────────────────────────────────────────────────────
-    ("1544161515-4ab6ce6db874",   "Spa & Wellness"),
+    ("1544161515-4ab6ce6db874", "Spa & Wellness"),
     ("1540555700478-4be290a57523", "Trung tâm thể thao"),
-    # ── View / Location ──────────────────────────────────────────────────────
     ("1512917774080-9991f1c4c750", "Cảnh quan"),
     ("1499793983690-e29da59ef1c2", "Tầm nhìn"),
     ("1506973035872-a4ec16b8e8d9", "Hoàng hôn"),
@@ -56,17 +48,13 @@ _HOTEL_PHOTO_POOL: list[tuple[str, str]] = [
 
 
 def _unsplash_url(photo_id: str, w: int = 900, h: int = 600) -> str:
-    """Tạo URL Unsplash CDN trực tiếp theo photo_id — không cần API key."""
     return (
         f"https://images.unsplash.com/photo-{photo_id}"
         f"?q=80&w={w}&h={h}&auto=format&fit=crop"
     )
 
 
-# ── Helpers tính index từ hotel_id (seed-based, nhất quán) ───────────────────
-
 def _pool_indexes_for_hotel(hotel_id: str) -> tuple[int, list[int]]:
-    """Trả về (thumbnail_index, gallery_indexes[5]) từ hotel_id."""
     seed = sum(ord(c) for c in str(hotel_id))
     n = len(_HOTEL_PHOTO_POOL)
     thumb_idx = seed % n
@@ -75,18 +63,16 @@ def _pool_indexes_for_hotel(hotel_id: str) -> tuple[int, list[int]]:
 
 
 def _hotel_thumbnail_fallback(hotel_id: str) -> str:
-    """Thumbnail tính từ pool — dùng khi DB chưa có ảnh."""
     thumb_idx, _ = _pool_indexes_for_hotel(hotel_id)
     photo_id, _ = _HOTEL_PHOTO_POOL[thumb_idx]
     return _unsplash_url(photo_id, w=480, h=320)
 
 
 def _hotel_gallery_fallback(hotel_id: str) -> list[dict[str, str]]:
-    """Gallery 5 ảnh tính từ pool — dùng khi DB chưa có ảnh."""
     _, gallery_idxs = _pool_indexes_for_hotel(hotel_id)
     return [
         {
-            "url":     _unsplash_url(_HOTEL_PHOTO_POOL[i][0], w=1200, h=800),
+            "url": _unsplash_url(_HOTEL_PHOTO_POOL[i][0], w=1200, h=800),
             "caption": _HOTEL_PHOTO_POOL[i][1],
         }
         for i in gallery_idxs
@@ -94,103 +80,19 @@ def _hotel_gallery_fallback(hotel_id: str) -> list[dict[str, str]]:
 
 
 def _hotel_thumbnail(hotel_id: str) -> str:
-    """
-    Thumbnail cho hotel: ưu tiên DB → fallback pool.
-    Nếu chưa có trong DB, upsert để lần sau đọc từ DB.
-    """
-    try:
-        from db import query_one
-        row = query_one(
-            "SELECT TOP 1 hi.ImageUrl FROM HotelImages hi "
-            "JOIN Hotels h ON h.HotelId = hi.HotelId "
-            "WHERE h.ExternalHotelCode = ? AND hi.DisplayOrder = 0",
-            (hotel_id,),
-        )
-        if row and row.get("ImageUrl"):
-            return row["ImageUrl"]
-    except Exception:
-        pass  # DB chưa sẵn sàng — dùng fallback
-
-    # Chưa có → upsert (fire-and-forget)
-    _upsert_hotel_images_to_db(hotel_id)
+    # Bỏ DB image để tránh lỗi ModuleNotFoundError: No module named 'db'
     return _hotel_thumbnail_fallback(hotel_id)
 
 
 def _hotel_gallery(hotel_id: str) -> list[dict[str, str]]:
-    """
-    Gallery 5 ảnh cho detail page: ưu tiên DB → fallback pool.
-    """
-    try:
-        from db import query_all
-        rows = query_all(
-            "SELECT hi.ImageUrl, hi.Caption FROM HotelImages hi "
-            "JOIN Hotels h ON h.HotelId = hi.HotelId "
-            "WHERE h.ExternalHotelCode = ? AND hi.DisplayOrder >= 1 "
-            "ORDER BY hi.DisplayOrder",
-            (hotel_id,),
-        )
-        if rows:
-            return [{"url": r["ImageUrl"], "caption": r["Caption"] or ""} for r in rows]
-    except Exception:
-        pass
-
+    # Bỏ DB image để tránh lỗi ModuleNotFoundError: No module named 'db'
     return _hotel_gallery_fallback(hotel_id)
 
 
 def _upsert_hotel_images_to_db(hotel_id: str) -> None:
-    """
-    Lưu ảnh của hotel vào DB (HotelImages) nếu chưa có.
-    Gọi sau khi Hotels đã có record với ExternalHotelCode = hotel_id.
-    Nếu Hotels chưa có thì bỏ qua — sẽ được retry lần sau.
-    """
-    try:
-        from db import query_one, get_connection
+    # Chủ động tắt để không còn phụ thuộc module db
+    return
 
-        hotel_row = query_one(
-            "SELECT HotelId FROM Hotels WHERE ExternalHotelCode = ?",
-            (hotel_id,),
-        )
-        if not hotel_row:
-            return  # Hotels chưa có record này
-
-        db_hotel_id = hotel_row["HotelId"]
-
-        existing = query_one(
-            "SELECT COUNT(*) AS cnt FROM HotelImages WHERE HotelId = ?",
-            (db_hotel_id,),
-        )
-        if existing and existing.get("cnt", 0) > 0:
-            return  # Đã có ảnh, không ghi đè
-
-        thumb_idx, gallery_idxs = _pool_indexes_for_hotel(hotel_id)
-        n = len(_HOTEL_PHOTO_POOL)
-
-        with get_connection() as conn:
-            cursor = conn.cursor()
-
-            # Thumbnail (DisplayOrder = 0)
-            t_photo_id, t_caption = _HOTEL_PHOTO_POOL[thumb_idx % n]
-            cursor.execute(
-                "INSERT INTO HotelImages (HotelId, ImageUrl, Caption, DisplayOrder) "
-                "VALUES (?, ?, ?, 0)",
-                (db_hotel_id, _unsplash_url(t_photo_id, w=480, h=320), t_caption),
-            )
-
-            # Gallery (DisplayOrder 1-5)
-            for order, idx in enumerate(gallery_idxs, start=1):
-                g_photo_id, g_caption = _HOTEL_PHOTO_POOL[idx % n]
-                cursor.execute(
-                    "INSERT INTO HotelImages (HotelId, ImageUrl, Caption, DisplayOrder) "
-                    "VALUES (?, ?, ?, ?)",
-                    (db_hotel_id, _unsplash_url(g_photo_id, w=1200, h=800), g_caption, order),
-                )
-
-            conn.commit()
-
-    except Exception as exc:
-        import traceback as _tb
-        print(f"[warn] _upsert_hotel_images_to_db({hotel_id}): {exc}")
-        _tb.print_exc()
 
 CITY_CODE_ALIASES = {
     "BKK": "Bangkok",
@@ -217,7 +119,7 @@ CITY_CODE_ALIASES = {
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  GEOAPIFY helpers
+# GEOAPIFY helpers
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _check_env() -> None:
@@ -229,6 +131,7 @@ def _geoapify_get(path: str, params: dict[str, Any] | None = None) -> dict[str, 
     _check_env()
     final_params = dict(params or {})
     final_params["apiKey"] = GEOAPIFY_API_KEY
+
     with httpx.Client(base_url=GEOAPIFY_BASE_URL, timeout=25.0) as client:
         response = client.get(path, params=final_params)
         response.raise_for_status()
@@ -239,6 +142,7 @@ def _normalize_city_input(city_code: str | None = None, city: str | None = None)
     raw = (city or city_code or "").strip()
     if not raw:
         raise ValueError("Thiếu city hoặc city_code")
+
     upper = raw.upper()
     return CITY_CODE_ALIASES.get(upper, raw)
 
@@ -246,7 +150,13 @@ def _normalize_city_input(city_code: str | None = None, city: str | None = None)
 def _geocode_city(city_text: str) -> dict[str, Any]:
     payload = _geoapify_get(
         "/v1/geocode/search",
-        {"text": city_text, "type": "city", "format": "json", "limit": 1, "lang": "vi"},
+        {
+            "text": city_text,
+            "type": "city",
+            "format": "json",
+            "limit": 1,
+            "lang": "vi",
+        },
     )
     results = payload.get("results") or []
     if not results:
@@ -258,13 +168,16 @@ def _build_city_filter(geo: dict[str, Any]) -> tuple[str, str]:
     lon = geo.get("lon")
     lat = geo.get("lat")
     bbox = geo.get("bbox") or {}
+
     if bbox:
         lon1, lat1 = bbox.get("lon1"), bbox.get("lat1")
         lon2, lat2 = bbox.get("lon2"), bbox.get("lat2")
         if None not in (lon1, lat1, lon2, lat2):
             return f"rect:{lon1},{lat1},{lon2},{lat2}", f"proximity:{lon},{lat}"
+
     if None in (lon, lat):
         raise ValueError("Không lấy được tọa độ thành phố từ Geoapify")
+
     return f"circle:{lon},{lat},12000", f"proximity:{lon},{lat}"
 
 
@@ -298,9 +211,10 @@ def _mock_hotel_meta(hotel_id: str) -> dict[str, Any]:
         "amenities": amenities,
     }
 
+
 def _hotel_list_item_from_feature(feature: dict[str, Any]) -> dict[str, Any]:
     props = feature.get("properties") or {}
-    hotel_id = props.get("place_id")
+    hotel_id = props.get("place_id") or ""
     meta = _mock_hotel_meta(hotel_id)
 
     return {
@@ -327,6 +241,7 @@ def search_hotels_by_city(
     city_text = _normalize_city_input(city_code=city_code, city=city)
     geo = _geocode_city(city_text)
     filter_value, bias_value = _build_city_filter(geo)
+
     payload = _geoapify_get(
         "/v2/places",
         {
@@ -337,12 +252,13 @@ def search_hotels_by_city(
             "lang": "vi",
         },
     )
+
     features = payload.get("features") or []
     return [_hotel_list_item_from_feature(item) for item in features[:max_results]]
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  OPENWEATHERMAP helpers
+# OPENWEATHERMAP helpers
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _owm_icon_url(icon_code: str) -> str:
@@ -356,11 +272,6 @@ def get_weather_by_city(
     lon: float | None = None,
     lang: str = "vi",
 ) -> dict[str, Any]:
-    """
-    Gọi OpenWeatherMap Current Weather API.
-    Ưu tiên: lat/lon > city/city_code (text).
-    Thêm OPENWEATHERMAP_API_KEY vào .env
-    """
     if not OWM_API_KEY:
         raise ValueError(
             "Thiếu OPENWEATHERMAP_API_KEY trong .env. "
@@ -369,7 +280,7 @@ def get_weather_by_city(
 
     params: dict[str, Any] = {
         "appid": OWM_API_KEY,
-        "units": "metric",   # Celsius
+        "units": "metric",
         "lang": lang,
     }
 
@@ -377,7 +288,6 @@ def get_weather_by_city(
         params["lat"] = lat
         params["lon"] = lon
     else:
-        # Resolve city_code alias nếu cần
         raw = city or city_code or ""
         city_text = _normalize_city_input(city=raw) if raw else ""
         if not city_text:
@@ -407,7 +317,7 @@ def get_weather_by_city(
         "temp_max": round(main.get("temp_max", 0)),
         "humidity": main.get("humidity"),
         "pressure": main.get("pressure"),
-        "wind_speed": round(wind.get("speed", 0) * 3.6),   # m/s → km/h
+        "wind_speed": round(wind.get("speed", 0) * 3.6),
         "wind_deg": wind.get("deg"),
         "description": weather.get("description", ""),
         "icon_code": weather.get("icon", ""),
@@ -420,7 +330,7 @@ def get_weather_by_city(
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  HOTEL DETAIL helpers (không đổi)
+# HOTEL DETAIL helpers
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _extract_detail_feature(payload: dict[str, Any]) -> dict[str, Any]:
@@ -438,18 +348,20 @@ def _bool_amenity(value: Any, label: str) -> str | None:
 
 def _extract_amenities(props: dict[str, Any]) -> list[str]:
     amenities = [
-        _bool_amenity(props.get("internet_access"), "Wi‑Fi"),
+        _bool_amenity(props.get("internet_access"), "Wi-Fi"),
         _bool_amenity(props.get("air_conditioning"), "Điều hòa"),
         _bool_amenity(props.get("swimming_pool"), "Hồ bơi"),
         _bool_amenity(props.get("wheelchair"), "Hỗ trợ xe lăn"),
         _bool_amenity(props.get("toilets"), "Nhà vệ sinh"),
         _bool_amenity(props.get("dogs"), "Cho phép thú cưng"),
     ]
+
     accommodation = props.get("accommodation") or {}
     stars = accommodation.get("stars")
     rooms = accommodation.get("rooms")
     beds = accommodation.get("beds")
     reservation = accommodation.get("reservation")
+
     if stars:
         amenities.append(f"{stars} sao")
     if rooms:
@@ -458,17 +370,20 @@ def _extract_amenities(props: dict[str, Any]) -> list[str]:
         amenities.append(f"{beds} giường")
     if reservation:
         amenities.append(f"Reservation: {reservation}")
+
     categories = props.get("categories") or []
     if isinstance(categories, list):
         for cat in categories:
             if cat.startswith("accommodation.") and cat != "accommodation.hotel":
                 amenities.append(cat.replace("accommodation.", "").replace("_", " ").title())
+
     seen: set[str] = set()
     result = []
     for item in amenities:
         if item and item not in seen:
             seen.add(item)
             result.append(item)
+
     return result[:12]
 
 
@@ -476,6 +391,7 @@ def _make_description(props: dict[str, Any]) -> str:
     lines = []
     categories = props.get("categories") or []
     accommodation = props.get("accommodation") or {}
+
     if props.get("formatted"):
         lines.append(f"Địa chỉ: {props['formatted']}.")
     if accommodation.get("stars"):
@@ -487,11 +403,13 @@ def _make_description(props: dict[str, Any]) -> str:
     if categories:
         pretty = ", ".join(str(x) for x in categories[:4])
         lines.append(f"Nhóm dữ liệu: {pretty}.")
+
     if not lines:
         return (
             "Khách sạn này hiện chưa có nhiều mô tả chi tiết từ Geoapify. "
             "Bạn có thể lưu thêm description, ảnh, giá phòng và review mock trong SQL nội bộ."
         )
+
     return " ".join(lines)
 
 
@@ -528,6 +446,7 @@ def _mock_offers(check_in: str, adults: int) -> list[dict[str, Any]]:
             "payment_type": "Pay now",
         },
     ]
+
 
 def _pick_midday_item(items: list[dict[str, Any]]) -> dict[str, Any]:
     if not items:
@@ -622,8 +541,6 @@ def get_weather_forecast_3days(
         try:
             requested_date = datetime.strptime(check_in, "%Y-%m-%d").date()
             requested_str = requested_date.isoformat()
-
-            # nếu ngày chọn không có trong forecast thì fallback về ngày đầu tiên đang có
             start_date_str = requested_str if requested_str in available_dates else available_dates[0]
         except ValueError:
             start_date_str = available_dates[0]
@@ -664,28 +581,25 @@ def get_weather_forecast_3days(
         "resolved_start_date": start_date_str,
         "days": daily_forecasts,
     }
+
+
 def get_hotel_detail_payload(hotel_id: str, check_in: str, adults: int = 2) -> dict[str, Any]:
     payload = _geoapify_get(
         "/v2/place-details",
         {"id": hotel_id, "features": "details", "lang": "vi"},
     )
+
     meta = _mock_hotel_meta(hotel_id)
     feature = _extract_detail_feature(payload)
     props = feature.get("properties") or {}
     geometry = feature.get("geometry") or {}
     coordinates = geometry.get("coordinates") or [None, None]
+
     lon = props.get("lon") if props.get("lon") is not None else coordinates[0]
     lat = props.get("lat") if props.get("lat") is not None else coordinates[1]
+
     offers = _mock_offers(check_in=check_in, adults=adults)
-    numeric_prices = [float(x["price_total"]) for x in offers if x.get("price_total")]
-    price_from = min(numeric_prices) if numeric_prices else None
-    stars = None
-    accommodation = props.get("accommodation") or {}
-    if accommodation.get("stars"):
-        try:
-            stars = float(str(accommodation.get("stars")).replace("S", ""))
-        except ValueError:
-            stars = None
+
     return {
         "hotel_id": hotel_id,
         "name": props.get("name") or props.get("address_line1") or "Unknown hotel",

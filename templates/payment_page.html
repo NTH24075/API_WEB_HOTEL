@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Thanh toán booking</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #f5f3ee;
+      --card: #ffffff;
+      --line: #ece7df;
+      --line-soft: #f0ece5;
+      --text: #1f2937;
+      --muted: #7b8190;
+      --blue: #2f57c6;
+      --blue-hover: #284aac;
+      --gold: #d5a243;
+      --soft-blue: #eef3ff;
+      --soft-gold: #fbf6ea;
+      --shadow: 0 10px 30px rgba(31, 41, 55, 0.06);
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background:
+        radial-gradient(circle at top left, #faf7f0 0%, #f5f3ee 45%),
+        var(--bg);
+      color: var(--text);
+    }
+
+    a {
+      text-decoration: none;
+    }
+
+    button {
+      font-family: inherit;
+    }
+
+    .top-booking-nav {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 40px;
+      min-height: 78px;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+
+    .booking-nav-left,
+    .booking-nav-right {
+      width: 220px;
+      display: flex;
+      align-items: center;
+    }
+
+    .booking-nav-left {
+      justify-content: flex-start;
+    }
+
+    .booking-nav-right {
+      justify-content: flex-end;
+    }
+
+    .brand-text {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 38px;
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: 0.2px;
+      user-select: none;
+    }
+
+    .brand-text .stay {
+      color: var(--blue);
+    }
+
+    .brand-text .book {
+      color: var(--gold);
+      font-style: italic;
+      margin-left: 2px;
+    }
+
+    .booking-nav-center {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 22px;
+    }
+
+    .step-item {
+      display: flex;
+      align-items: center;
+      color: #8b8f9c;
+      font-size: 15px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .step-circle {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #d7d9df;
+      color: #6b7280;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .step-label {
+      margin-left: 10px;
+    }
+
+    .step-line {
+      width: 95px;
+      height: 3px;
+      background: #d7d9df;
+      border-radius: 999px;
+      margin-left: 14px;
+    }
+
+    .step-item.active .step-circle,
+    .step-item.done .step-circle {
+      background: var(--blue);
+      color: #fff;
+      box-shadow: 0 0 0 6px rgba(47, 87, 198, 0.08);
+    }
+
+    .step-item.active .step-label,
+    .step-item.done .step-label {
+      color: var(--blue);
+      font-weight: 700;
+    }
+
+    .step-item.active .step-line,
+    .step-item.done .step-line {
+      background: var(--blue);
+    }
+
+    .page-wrap {
+      padding: 34px 20px 48px;
+    }
+
+    .container {
+      max-width: 1120px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 18px;
+      padding: 26px;
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      margin-bottom: 22px;
+    }
+
+    .hero-card {
+      padding: 28px;
+      background:
+        linear-gradient(135deg, rgba(47, 87, 198, 0.06), rgba(213, 162, 67, 0.06)),
+        #ffffff;
+    }
+
+    h1 {
+      margin-top: 0;
+      margin-bottom: 10px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 34px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.2;
+    }
+
+    h2 {
+      margin-top: 0;
+      margin-bottom: 18px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    h3 {
+      margin-top: 0;
+      margin-bottom: 12px;
+      font-size: 20px;
+      color: var(--text);
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 14px;
+      margin: 0;
+      line-height: 1.6;
+    }
+
+    .header-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin-top: 22px;
+    }
+
+    .hero-info-box {
+      background: linear-gradient(135deg, var(--soft-blue), #ffffff);
+      border: 1px solid #dfe8ff;
+      border-radius: 18px;
+      padding: 22px;
+    }
+
+    .hero-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--blue);
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .hero-booking {
+      font-size: 30px;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 8px;
+      line-height: 1.2;
+    }
+
+    .hero-sub {
+      color: #4b5563;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .hero-total-box {
+      background: linear-gradient(135deg, var(--soft-gold), #fff);
+      border: 1px solid #f0e4c5;
+      border-radius: 18px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .hero-total-label {
+      font-size: 13px;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: #9a6d17;
+      letter-spacing: 0.4px;
+      margin-bottom: 8px;
+    }
+
+    .hero-total-value {
+      font-size: 34px;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1.1;
+      margin-bottom: 8px;
+    }
+
+    .hero-total-note {
+      color: #6b7280;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 22px;
+      align-items: start;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px 16px;
+    }
+
+    .info-row {
+      padding: 14px 16px;
+      border: 1px solid var(--line-soft);
+      border-radius: 14px;
+      background: #fcfbf8;
+      min-height: 74px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .info-row strong {
+      color: #6b7280;
+      font-weight: 700;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .info-row span {
+      color: #111827;
+      font-size: 17px;
+      font-weight: 700;
+      line-height: 1.4;
+      word-break: break-word;
+    }
+
+    .summary-box {
+      margin-top: 18px;
+      background: linear-gradient(180deg, #ffffff 0%, #faf8f4 100%);
+      border: 1px solid #ebe5db;
+      border-radius: 16px;
+      padding: 18px;
+    }
+
+    .summary-banner {
+      border-radius: 16px;
+      padding: 18px 20px;
+      background: linear-gradient(135deg, var(--blue), #3f66d1);
+      color: #fff;
+      box-shadow: 0 12px 24px rgba(47, 87, 198, 0.18);
+    }
+
+    .summary-banner .label {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 700;
+      opacity: 0.9;
+      margin-bottom: 8px;
+    }
+
+    .summary-banner .value {
+      font-size: 34px;
+      font-weight: 800;
+      line-height: 1.15;
+    }
+
+    .payment-box {
+      background: linear-gradient(180deg, #ffffff 0%, #faf8f4 100%);
+    }
+
+    .payment-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: fit-content;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      background: #eef2ff;
+      color: var(--blue);
+    }
+
+    .status-badge::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      display: inline-block;
+    }
+
+    .status-paid {
+      background: #eaf7ef;
+      color: #15803d;
+    }
+
+    .status-unpaid {
+      background: #fff7ed;
+      color: #c2410c;
+    }
+
+    .status-confirmed {
+      background: #eaf7ef;
+      color: #15803d;
+    }
+
+    .status-pending {
+      background: #fff7ed;
+      color: #c2410c;
+    }
+
+    .action-row {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-top: 22px;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 12px;
+      padding: 13px 20px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 14px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      min-height: 48px;
+    }
+
+    .btn-back {
+      background: #ffffff;
+      color: var(--blue);
+      border: 1px solid #d9e2fb;
+      box-shadow: 0 8px 18px rgba(47, 87, 198, 0.08);
+    }
+
+    .btn-back:hover {
+      background: #f5f8ff;
+      transform: translateY(-1px);
+      box-shadow: 0 12px 22px rgba(47, 87, 198, 0.12);
+    }
+
+    .btn-home {
+      background: #ffffff;
+      color: #111827;
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 8px 18px rgba(31, 41, 55, 0.06);
+    }
+
+    .btn-home:hover {
+      background: #f9fafb;
+      transform: translateY(-1px);
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, var(--blue), #3d65d0);
+      color: #ffffff;
+      box-shadow: 0 12px 24px rgba(47, 87, 198, 0.18);
+    }
+
+    .btn-success:hover {
+      background: linear-gradient(135deg, var(--blue-hover), #3359c0);
+      transform: translateY(-1px);
+      box-shadow: 0 14px 28px rgba(47, 87, 198, 0.22);
+    }
+
+    .btn-primary {
+      background: #1f2937;
+      color: #ffffff;
+      box-shadow: 0 10px 20px rgba(31, 41, 55, 0.12);
+    }
+
+    .btn-primary:hover {
+      background: #111827;
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: #f3f4f6;
+      color: #374151;
+      border: 1px solid #e5e7eb;
+    }
+
+    .btn-secondary:hover {
+      background: #e9ebef;
+    }
+
+    .result-box {
+      margin-top: 18px;
+      padding: 18px;
+      border-radius: 14px;
+      border: 1px solid #ebe5db;
+      background: #faf8f4;
+      display: none;
+      line-height: 1.6;
+      font-size: 15px;
+    }
+
+    .qr-box {
+      margin-top: 20px;
+      padding: 22px;
+      border: 1px solid #ebe5db;
+      border-radius: 16px;
+      background: #faf8f4;
+      display: none;
+      text-align: center;
+    }
+
+    .qr-box img {
+      width: 240px;
+      height: 240px;
+      object-fit: contain;
+      border: 1px solid #e5ddd0;
+      border-radius: 12px;
+      background: #ffffff;
+      padding: 10px;
+    }
+
+    .note-box {
+      margin-top: 18px;
+      border-radius: 14px;
+      border: 1px dashed #d9d2c5;
+      background: #fcfbf8;
+      padding: 16px 18px;
+      color: #6b7280;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    @media (max-width: 992px) {
+      .top-booking-nav {
+        padding: 16px 18px;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .booking-nav-left,
+      .booking-nav-right {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .booking-nav-center {
+        flex-wrap: wrap;
+        gap: 14px;
+      }
+
+      .step-line {
+        width: 48px;
+      }
+
+      .hero-grid,
+      .content-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .page-wrap {
+        padding: 18px 12px 30px;
+      }
+
+      .info-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .action-row {
+        flex-direction: column;
+      }
+
+      .btn {
+        width: 100%;
+        text-align: center;
+      }
+
+      h1 {
+        font-size: 28px;
+      }
+
+      h2 {
+        font-size: 24px;
+      }
+
+      .brand-text {
+        font-size: 32px;
+      }
+
+      .hero-booking,
+      .hero-total-value,
+      .summary-banner .value {
+        font-size: 28px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="top-booking-nav">
+    <div class="booking-nav-left">
+      <div class="brand-text">
+        <span class="stay">Stay</span><span class="book">Book</span>
+      </div>
+    </div>
+
+    <div class="booking-nav-center">
+      <div class="step-item done">
+        <div class="step-circle">1</div>
+        <div class="step-label">Thông tin</div>
+        <div class="step-line"></div>
+      </div>
+
+      <div class="step-item done">
+        <div class="step-circle">2</div>
+        <div class="step-label">Dịch vụ</div>
+        <div class="step-line"></div>
+      </div>
+
+      <div class="step-item active">
+        <div class="step-circle">3</div>
+        <div class="step-label">Thanh toán</div>
+      </div>
+    </div>
+
+    <div class="booking-nav-right"></div>
+  </div>
+
+  <div class="page-wrap">
+    <div class="container">
+      <div class="card hero-card">
+        <div class="header-actions">
+          <div>
+            <h1>Thanh toán booking</h1>
+            <p class="muted">Kiểm tra thông tin booking và hoàn tất thanh toán của bạn.</p>
+          </div>
+
+          <div class="action-row" style="margin-top: 0;">
+            <a id="backBtn" class="btn btn-back" href="#">Trở về</a>
+            <button id="backHomeBtn" class="btn btn-home" type="button">Trở về trang chủ</button>
+          </div>
+        </div>
+
+        <div class="hero-grid">
+          <div class="hero-info-box">
+            <div class="hero-label">Booking hiện tại</div>
+            <div class="hero-booking">Mã booking #<span id="booking_id_hero">...</span></div>
+            <div class="hero-sub">
+              Khách hàng <strong id="customer_name_hero">...</strong> đang đặt <strong id="rooms_hero">0</strong> phòng,
+              thời gian lưu trú từ <strong id="check_in_hero">--</strong> đến <strong id="check_out_hero">--</strong>.
+            </div>
+          </div>
+
+          <div class="hero-total-box">
+            <div class="hero-total-label">Tổng tiền booking</div>
+            <div class="hero-total-value" id="total_amount_hero">0 ₫</div>
+            <div class="hero-total-note">Sau khi xác nhận thanh toán thành công, booking sẽ được chuyển sang trạng thái đã xác nhận.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="content-grid">
+        <div>
+          <div class="card">
+            <h2>Thông tin booking</h2>
+
+            <div class="info-grid">
+              <div class="info-row">
+                <strong>Booking ID</strong>
+                <span id="booking_id_text">...</span>
+              </div>
+
+              <div class="info-row">
+                <strong>Mã booking</strong>
+                <span id="booking_code_text">...</span>
+              </div>
+
+              <div class="info-row">
+                <strong>Khách hàng</strong>
+                <span id="customer_name_text">...</span>
+              </div>
+
+              <div class="info-row">
+                <strong>Email</strong>
+                <span id="customer_email_text">...</span>
+              </div>
+
+              <div class="info-row">
+                <strong>Số điện thoại</strong>
+                <span id="customer_phone_text">...</span>
+              </div>
+
+              <div class="info-row">
+                <strong>Số phòng</strong>
+                <span id="rooms_text">...</span>
+              </div>
+
+              <div class="info-row">
+                <strong>Check-in</strong>
+                <span id="check_in_text">...</span>
+              </div>
+
+              <div class="info-row">
+                <strong>Check-out</strong>
+                <span id="check_out_text">...</span>
+              </div>
+
+              <div class="info-row">
+                <strong>Người lớn</strong>
+                <span id="adults_text">...</span>
+              </div>
+
+              <div class="info-row">
+                <strong>Trẻ em</strong>
+                <span id="children_text">...</span>
+              </div>
+
+              <div class="info-row">
+                <strong>Booking status</strong>
+                <span id="booking_status_text">...</span>
+              </div>
+
+              <div class="info-row">
+                <strong>Payment status</strong>
+                <span id="payment_status_text">...</span>
+              </div>
+            </div>
+
+            <div class="summary-box">
+              <div class="summary-banner">
+                <div class="label">Tổng tiền booking</div>
+                <div class="value" id="total_amount_text">0 ₫</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card payment-box">
+            <h2>Thông tin payment</h2>
+
+            <div class="payment-grid">
+              <div class="info-row">
+                <strong>Payment ID</strong>
+                <span id="payment_id_text">Chưa tạo</span>
+              </div>
+
+              <div class="info-row">
+                <strong>Phương thức</strong>
+                <span id="payment_method_text">QR</span>
+              </div>
+
+              <div class="info-row">
+                <strong>Trạng thái</strong>
+                <span id="payment_detail_status_text">Chưa tạo</span>
+              </div>
+
+              <div class="info-row">
+                <strong>Số tiền</strong>
+                <span id="payment_amount_text">0 ₫</span>
+              </div>
+            </div>
+
+            <div class="action-row">
+              <button class="btn btn-success" onclick="createPayment()">Tạo thanh toán</button>
+              <button class="btn btn-primary" onclick="confirmPayment()">Xác nhận đã thanh toán</button>
+              <button class="btn btn-secondary" onclick="reloadPaymentData()">Tải lại dữ liệu</button>
+            </div>
+
+            <div id="qrBox" class="qr-box">
+              <h3>Quét mã QR để thanh toán</h3>
+              <img id="qrImage" src="" alt="QR thanh toán" />
+              <p id="qrContentText" class="muted"></p>
+            </div>
+
+            <div class="note-box">
+              Nút <strong>Trở về</strong> sẽ quay lại trang chọn dịch vụ như trước.
+              Nút <strong>Trở về trang chủ</strong> sẽ về thẳng nếu booking đã thanh toán,
+              còn nếu chưa thanh toán thì hệ thống sẽ hỏi xác nhận và có thể xoá booking hiện tại.
+            </div>
+
+            <div id="resultBox" class="result-box"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const bookingId = params.get("booking_id");
+    const token = localStorage.getItem("access_token");
+
+    let currentPaymentId = null;
+    let currentBookingPaymentStatus = "";
+    let currentBookingStatus = "";
+
+    const bookingStatusText = document.getElementById("booking_status_text");
+    const paymentStatusText = document.getElementById("payment_status_text");
+    const paymentDetailStatusText = document.getElementById("payment_detail_status_text");
+    const backBtn = document.getElementById("backBtn");
+    const backHomeBtn = document.getElementById("backHomeBtn");
+
+    function formatMoney(value) {
+      return new Intl.NumberFormat("vi-VN", {
+        style: "currency",
+        currency: "VND",
+        maximumFractionDigits: 0
+      }).format(value || 0);
+    }
+
+    function updateBackLink() {
+      backBtn.href = `/api/bookinghotels/booking-services-page?booking_id=${bookingId}`;
+    }
+
+    function renderStatusBadge(el, value, type = "") {
+      if (!el) return;
+
+      const raw = value || "Chưa có";
+      let className = "status-badge";
+
+      if (type === "payment") {
+        if (String(raw).toLowerCase() === "paid") className += " status-paid";
+        else className += " status-unpaid";
+      }
+
+      if (type === "booking") {
+        const normalized = String(raw).toLowerCase();
+        if (normalized === "confirmed") className += " status-confirmed";
+        else className += " status-pending";
+      }
+
+      el.innerHTML = `<span class="${className}">${raw}</span>`;
+    }
+
+    function showResult(color, message) {
+      const box = document.getElementById("resultBox");
+      box.style.display = "block";
+      box.innerHTML = `<div style="color:${color};"><strong>${message}</strong></div>`;
+    }
+
+    function showFakeQR(paymentId, amount) {
+      const qrText = `PAYMENT:${paymentId}|BOOKING:${bookingId}|AMOUNT:${amount}`;
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(qrText)}`;
+
+      document.getElementById("qrImage").src = qrUrl;
+      document.getElementById("qrContentText").innerText = qrText;
+      document.getElementById("qrBox").style.display = "block";
+    }
+
+    function hideQR() {
+      document.getElementById("qrBox").style.display = "none";
+    }
+
+    async function loadBookingInfo() {
+      try {
+        const response = await fetch(`/api/bookinghotels/payment-info/${bookingId}`, {
+          method: "GET",
+          headers: {
+            "Authorization": "Bearer " + token
+          }
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.detail || "Không tải được thông tin booking");
+        }
+
+        currentBookingPaymentStatus = data.payment_status || "";
+        currentBookingStatus = data.booking_status || "";
+
+        document.getElementById("booking_id_text").innerText = data.booking_id;
+        document.getElementById("booking_code_text").innerText = data.booking_code;
+        document.getElementById("customer_name_text").innerText = data.customer_name || "Chưa có";
+        document.getElementById("customer_email_text").innerText = data.customer_email || "Chưa có";
+        document.getElementById("customer_phone_text").innerText = data.customer_phone || "Chưa có";
+        document.getElementById("check_in_text").innerText = data.check_in_date || "Chưa có";
+        document.getElementById("check_out_text").innerText = data.check_out_date || "Chưa có";
+        document.getElementById("rooms_text").innerText = data.number_of_rooms ?? "0";
+        document.getElementById("adults_text").innerText = data.adults ?? "0";
+        document.getElementById("children_text").innerText = data.children ?? "0";
+        document.getElementById("total_amount_text").innerText = formatMoney(data.total_amount);
+        document.getElementById("payment_amount_text").innerText = formatMoney(data.total_amount);
+
+        document.getElementById("booking_id_hero").innerText = data.booking_id ?? "...";
+        document.getElementById("customer_name_hero").innerText = data.customer_name || "Chưa có";
+        document.getElementById("rooms_hero").innerText = data.number_of_rooms ?? "0";
+        document.getElementById("check_in_hero").innerText = data.check_in_date || "--";
+        document.getElementById("check_out_hero").innerText = data.check_out_date || "--";
+        document.getElementById("total_amount_hero").innerText = formatMoney(data.total_amount);
+
+        renderStatusBadge(bookingStatusText, data.booking_status, "booking");
+        renderStatusBadge(paymentStatusText, data.payment_status, "payment");
+      } catch (error) {
+        showResult("red", error.message);
+      }
+    }
+
+    async function loadLatestPayment() {
+      try {
+        const response = await fetch(`/api/bookinghotels/payment-detail-by-booking/${bookingId}`, {
+          method: "GET",
+          headers: {
+            "Authorization": "Bearer " + token
+          }
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          currentPaymentId = null;
+          document.getElementById("payment_id_text").innerText = "Chưa tạo";
+          document.getElementById("payment_method_text").innerText = "QR";
+          renderStatusBadge(paymentDetailStatusText, "Chưa tạo", "payment");
+          hideQR();
+          return;
+        }
+
+        currentPaymentId = data.payment_id;
+        document.getElementById("payment_id_text").innerText = data.payment_id;
+        document.getElementById("payment_method_text").innerText = data.payment_method || "QR";
+        document.getElementById("payment_amount_text").innerText = formatMoney(data.amount);
+
+        renderStatusBadge(paymentDetailStatusText, data.payment_status, "payment");
+
+        if (String(data.payment_status).toLowerCase() !== "paid") {
+          showFakeQR(data.payment_id, data.amount);
+        } else {
+          hideQR();
+        }
+      } catch (error) {
+        console.error("Load payment error:", error.message);
+      }
+    }
+
+    async function createPayment() {
+      try {
+        const response = await fetch(`/api/bookinghotels/create-payment/${bookingId}`, {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + token
+          }
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.detail || "Không tạo được payment");
+        }
+
+        currentPaymentId = data.payment_id;
+        document.getElementById("payment_id_text").innerText = data.payment_id;
+        document.getElementById("payment_method_text").innerText = data.payment_method || "QR";
+        document.getElementById("payment_amount_text").innerText = formatMoney(data.amount);
+
+        renderStatusBadge(paymentDetailStatusText, "UnPaid", "payment");
+
+        showFakeQR(data.payment_id, data.amount);
+        showResult("green", "Tạo payment thành công. Vui lòng quét QR và bấm xác nhận.");
+        await loadBookingInfo();
+      } catch (error) {
+        showResult("red", error.message);
+      }
+    }
+
+    async function confirmPayment() {
+      try {
+        if (!currentPaymentId) {
+          throw new Error("Chưa có payment để xác nhận");
+        }
+
+        const response = await fetch(`/api/bookinghotels/confirm-payment/${currentPaymentId}`, {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + token
+          }
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.detail || "Không xác nhận được thanh toán");
+        }
+
+        currentBookingPaymentStatus = data.payment_status || "Paid";
+        currentBookingStatus = data.booking_status || "Confirmed";
+
+        renderStatusBadge(paymentDetailStatusText, data.payment_status, "payment");
+        renderStatusBadge(bookingStatusText, data.booking_status, "booking");
+        renderStatusBadge(paymentStatusText, data.payment_status, "payment");
+
+        hideQR();
+        showResult("green", "Thanh toán thành công. Booking đã được xác nhận.");
+      } catch (error) {
+        showResult("red", error.message);
+      }
+    }
+
+    async function deleteCurrentBooking() {
+      const response = await fetch(`/api/bookinghotels/delete-booking/${bookingId}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": "Bearer " + token
+        }
+      });
+
+      const rawText = await response.text();
+      let data = {};
+
+      try {
+        data = rawText ? JSON.parse(rawText) : {};
+      } catch {
+        data = {};
+      }
+
+      if (!response.ok) {
+        throw new Error(data.detail || rawText || "Không xoá được booking");
+      }
+
+      return data;
+    }
+
+    async function handleBackHome() {
+      try {
+        const normalizedPaymentStatus = String(currentBookingPaymentStatus || "").toLowerCase();
+
+        if (normalizedPaymentStatus === "paid") {
+          window.location.href = "http://127.0.0.1:8000/hotels";
+          return;
+        }
+
+        const agreed = confirm(
+          "Booking này chưa thanh toán. Nếu bạn quay về trang chủ, booking hiện tại sẽ bị xoá. Bạn vẫn muốn tiếp tục chứ?"
+        );
+
+        if (!agreed) return;
+
+        showResult("#2f57c6", "Đang xoá booking và quay về trang chủ...");
+        await deleteCurrentBooking();
+        window.location.href = "http://127.0.0.1:8000/hotels";
+      } catch (error) {
+        showResult("red", error.message);
+      }
+    }
+
+    async function reloadPaymentData() {
+      await loadBookingInfo();
+      await loadLatestPayment();
+      showResult("#2f57c6", "Đã tải lại thông tin booking và payment.");
+    }
+
+    updateBackLink();
+    backHomeBtn.addEventListener("click", handleBackHome);
+
+    loadBookingInfo();
+    loadLatestPayment();
+  </script>
+</body>
+</html>
