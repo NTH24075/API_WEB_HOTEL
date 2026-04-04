@@ -8,47 +8,126 @@
     <link rel="stylesheet" href="/static/css/style.css" />
 </head>
 <body data-page="hotel-list">
-    <header class="topbar">
-        <div class="container topbar-inner">
-            <div class="brand">StayBook</div>
-            <nav class="topnav">
-                <a href="/">Khách sạn</a>
-                <a href="#">Chuyến đi của tôi</a>
-                <a href="/auth-page">Đăng nhập</a>
-            </nav>
+
+<header class="topbar">
+    <div class="container topbar-inner">
+        <a class="brand" href="/">Stay<span>Book</span></a>
+        <nav class="topnav">
+            <a href="/" class="active">Khách sạn</a>
+            <a href="#">Chuyến đi của tôi</a>
+            <a href="#">Đăng nhập</a>
+        </nav>
+    </div>
+</header>
+
+<section class="search-hero">
+    <div class="container">
+        <div class="hero-text">
+            <h1>Tìm <em>khách sạn</em> hoàn hảo</h1>
+            <p>Khám phá hàng nghìn lựa chọn tại mọi điểm đến trên thế giới</p>
         </div>
-    </header>
 
-    <main class="page">
-        <section class="search-hero">
-            <div class="container">
-                <h1>Tìm khách sạn với Amadeus API</h1>
-                <p>Demo học tập: tìm khách sạn theo city code rồi bấm vào từng khách sạn để xem trang chi tiết.</p>
-
-                <div class="search-panel">
-                    <div class="field">
-                        <label>City code</label>
-                        <input id="cityCode" value="BKK" placeholder="Ví dụ: BKK, PAR, SGN" />
-                    </div>
-
-                    <div class="field">
-                        <label>Check-in</label>
-                        <input id="checkInDate" type="date" value="2026-04-08" />
-                    </div>
-
-                    <div class="field">
-                        <label>Người lớn</label>
-                        <input id="adults" type="number" min="1" max="9" value="2" />
-                    </div>
-
-                    <button id="searchBtn" class="primary-btn">Tìm khách sạn</button>
-                </div>
+        <div class="search-panel">
+            <div class="field field-city">
+                <label>🏙 Điểm đến</label>
+                <input id="cityCode" value="BKK" placeholder="Ví dụ: BKK, HAN, SGN, PAR…" />
             </div>
-        </section>
+            <div class="field">
+                <label>📅 Check-in</label>
+                <input id="checkInDate" type="date" value="2026-04-08" />
+            </div>
+            <div class="field">
+                <label>📅 Check-out</label>
+                <input id="checkOutDate" type="date" value="2026-04-10" />
+            </div>
+            <div class="field field-sm">
+                <label>👤 Người lớn</label>
+                <input id="adults" type="number" min="1" max="9" value="2" />
+            </div>
+            <div class="field field-sm">
+                <label>🛏 Phòng</label>
+                <input id="rooms" type="number" min="1" max="9" value="1" />
+            </div>
+            <button id="searchBtn" class="search-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                Tìm kiếm
+            </button>
+        </div>
+    </div>
+</section>
 
-        <section class="container">
-            <div id="hotelResults" class="hotel-grid"></div>
-        </section>
+<div class="main-layout container">
+    <aside class="sidebar" id="sidebar">
+        <div class="widget weather-widget" id="weatherWidget">
+            <div class="widget-title">🌤 Thời tiết tại điểm đến</div>
+            <div id="weatherContent" class="weather-loading">
+                <div class="spinner"></div>
+                <span>Đang tải thời tiết…</span>
+            </div>
+        </div>
+
+        <div class="widget">
+            <div class="widget-title">Ngân sách / đêm</div>
+            <div class="range-labels">
+                <span id="budgetMin">₫0</span>
+                <span id="budgetMax">₫5.000.000+</span>
+            </div>
+            <input type="range" id="budgetRange" min="0" max="5000000" step="100000" value="5000000" class="range-input" />
+        </div>
+
+        <div class="widget">
+            <div class="widget-title">⭐ Hạng sao</div>
+            <div class="star-filter" id="starFilter">
+                <label class="star-chip active"><input type="checkbox" value="all" checked> Tất cả</label>
+                <label class="star-chip"><input type="checkbox" value="5"> ★★★★★</label>
+                <label class="star-chip"><input type="checkbox" value="4"> ★★★★</label>
+                <label class="star-chip"><input type="checkbox" value="3"> ★★★</label>
+                <label class="star-chip"><input type="checkbox" value="1"> 1-2 sao</label>
+            </div>
+        </div>
+
+        <div class="widget">
+            <div class="widget-title">🛎 Tiện nghi</div>
+            <div class="amenity-list" id="amenityFilter">
+                <!-- Loaded dynamically from /api/amenities -->
+                <div style="font-size:13px;color:var(--text-muted);padding:4px 0">Đang tải tiện nghi…</div>
+            </div>
+        </div>
+
+        <div class="widget">
+            <div class="widget-title">Loại chỗ nghỉ</div>
+            <div class="amenity-list">
+                <label class="amenity-item"><input type="checkbox" value="hotel" checked> Khách sạn</label>
+                <label class="amenity-item"><input type="checkbox" value="resort"> Resort</label>
+                <label class="amenity-item"><input type="checkbox" value="apartment"> Căn hộ / Flat</label>
+                <label class="amenity-item"><input type="checkbox" value="homestay"> Homestay</label>
+                <label class="amenity-item"><input type="checkbox" value="hostel"> Hostel</label>
+            </div>
+        </div>
+
+        <button class="apply-filter-btn" id="applyFilter">Áp dụng bộ lọc</button>
+    </aside>
+
+    <main class="results-area">
+        <div class="results-topbar" id="resultsTopbar" style="display:none">
+            <div id="resultsCount" class="results-count"></div>
+            <div class="sort-row">
+                <span>Sắp xếp:</span>
+                <select id="sortSelect" class="sort-select">
+                    <option value="default">Phù hợp nhất</option>
+                    <option value="price-asc">Giá tăng dần</option>
+                    <option value="price-desc">Giá giảm dần</option>
+                    <option value="name-asc">Tên A→Z</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="hotelResults" class="hotel-list">
+            <div class="empty-state">
+                <div class="empty-icon"></div>
+                <p>Nhập điểm đến và bấm <strong>Tìm kiếm</strong> để bắt đầu.</p>
+            </div>
+        </div>
     </main>
 </div>
 
