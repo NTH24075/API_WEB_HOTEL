@@ -10,3 +10,9 @@ python-multipart
 pydantic
 email-validator
 requests
+pyodbc
+python-jose
+python-multipart
+pydantic
+email-validator
+requests

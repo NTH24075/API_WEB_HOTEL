@@ -99,7 +99,7 @@ def _hotel_thumbnail(hotel_id: str) -> str:
     Nếu chưa có trong DB, upsert để lần sau đọc từ DB.
     """
     try:
-        from db import query_one
+        from Db import query_one
         row = query_one(
             "SELECT TOP 1 hi.ImageUrl FROM HotelImages hi "
             "JOIN Hotels h ON h.HotelId = hi.HotelId "
@@ -121,7 +121,7 @@ def _hotel_gallery(hotel_id: str) -> list[dict[str, str]]:
     Gallery 5 ảnh cho detail page: ưu tiên DB → fallback pool.
     """
     try:
-        from db import query_all
+        from Db import query_all
         rows = query_all(
             "SELECT hi.ImageUrl, hi.Caption FROM HotelImages hi "
             "JOIN Hotels h ON h.HotelId = hi.HotelId "
@@ -144,7 +144,7 @@ def _upsert_hotel_images_to_db(hotel_id: str) -> None:
     Nếu Hotels chưa có thì bỏ qua — sẽ được retry lần sau.
     """
     try:
-        from db import query_one, get_connection
+        from Db import query_one, get_connection
 
         hotel_row = query_one(
             "SELECT HotelId FROM Hotels WHERE ExternalHotelCode = ?",
