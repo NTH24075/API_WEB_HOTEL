@@ -72,24 +72,23 @@ function setText(el, value) {
   el.textContent = value || "—";
 }
 
+function getNullAvatar() {
+  return "data:image/svg+xml;utf8," + encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
+      <rect width="120" height="120" rx="60" fill="#E5E7EB"/>
+      <circle cx="60" cy="45" r="22" fill="#9CA3AF"/>
+      <path d="M25 98c7-18 25-28 35-28s28 10 35 28" fill="#9CA3AF"/>
+    </svg>
+  `);
+}
+
+function getAvatarSrc(url) {
+  return url && String(url).trim() ? url : getNullAvatar();
+}
+
 function setAvatar(url, fallbackName) {
   if (!userAvatar) return;
-
-  if (url) {
-    userAvatar.src = url;
-    userAvatar.alt = fallbackName || "Avatar";
-    return;
-  }
-
-  const initials = (fallbackName || "U")
-    .trim()
-    .split(/\s+/)
-    .map(part => part[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-
-  userAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=1b4dcc&color=ffffff`;
+  userAvatar.src = getAvatarSrc(url);
   userAvatar.alt = fallbackName || "Avatar";
 }
 
@@ -103,12 +102,12 @@ function renderNotice(user) {
 
   if (missingFields.length === 0) {
     userNotice.innerHTML = "";
-    userNotice.classList.remove("show");
+    userNotice.classList.add("hidden");
     return;
   }
 
   userNotice.innerHTML = `Bạn nên bổ sung: <strong>${missingFields.join(", ")}</strong>.`;
-  userNotice.classList.add("show");
+  userNotice.classList.remove("hidden");
 }
 
 function fillUserInfo(user) {
@@ -175,6 +174,7 @@ function closeModal(overlay) {
     document.body.classList.remove("modal-open");
   }
 }
+
 async function handleUpdateSubmit(event) {
   event.preventDefault();
 
