@@ -134,3 +134,10 @@ def admin_hotels_page(request: Request):
         name="admin/admin_hotel.html",
         context={}
     )
+@app.get("/receptionist/hotel-services-page", response_class=HTMLResponse)
+def receptionist_hotel_services_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="receptionist/receptionist_hotel_service.html",
+        context={}
+    )

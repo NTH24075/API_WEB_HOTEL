@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List
 
 
 class AssignHotelServiceRequest(BaseModel):
@@ -25,3 +25,14 @@ class HotelServiceItemResponse(BaseModel):
     unit: Optional[str] = None
     is_active: bool
     is_available: bool
+
+
+class ReceptionistHotelInfoResponse(BaseModel):
+    hotel_id: int
+    hotel_name: str
+    address: Optional[str] = None
+
+
+class ReceptionistHotelServicesResponse(BaseModel):
+    hotel: ReceptionistHotelInfoResponse
+    items: List[HotelServiceItemResponse]

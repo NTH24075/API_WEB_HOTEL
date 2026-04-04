@@ -56,6 +56,7 @@ def get_all_active_services():
                 "unit": row[4],
                 "is_active": bool(row[5]),
             })
+
         return result
     finally:
         conn.close()
@@ -67,6 +68,25 @@ def get_my_hotel_services(user_id: int):
     conn = get_conn()
     try:
         cursor = conn.cursor()
+
+        # Lấy thông tin khách sạn
+        cursor.execute("""
+            SELECT HotelId, HotelName, Address
+            FROM Hotels
+            WHERE HotelId = ?
+        """, (hotel_id,))
+        hotel_row = cursor.fetchone()
+
+        if not hotel_row:
+            raise HTTPException(status_code=404, detail="Khong tim thay khach san")
+
+        hotel_info = {
+            "hotel_id": hotel_row[0],
+            "hotel_name": hotel_row[1] or "Dang cap nhat",
+            "address": hotel_row[2] or "Dang cap nhat"
+        }
+
+        # Lấy danh sách service của hotel
         cursor.execute("""
             SELECT
                 hs.HotelServiceId,
@@ -86,13 +106,13 @@ def get_my_hotel_services(user_id: int):
         """, (hotel_id,))
         rows = cursor.fetchall()
 
-        result = []
+        items = []
         for row in rows:
             default_price = float(row[5])
             custom_price = float(row[6]) if row[6] is not None else None
             final_price = custom_price if custom_price is not None else default_price
 
-            result.append({
+            items.append({
                 "hotel_service_id": row[0],
                 "hotel_id": row[1],
                 "service_id": row[2],
@@ -106,19 +126,27 @@ def get_my_hotel_services(user_id: int):
                 "is_available": bool(row[9]),
             })
 
-        return result
+        return {
+            "hotel": hotel_info,
+            "items": items
+        }
     finally:
         conn.close()
 
 
-def assign_service_to_my_hotel(user_id: int, service_id: int, custom_price=None, is_available: bool = True):
+def assign_service_to_my_hotel(
+    user_id: int,
+    service_id: int,
+    custom_price=None,
+    is_available: bool = True
+):
     hotel_id = get_receptionist_hotel_id(user_id)
 
     conn = get_conn()
     try:
         cursor = conn.cursor()
 
-        # check service ton tai va dang active
+        # check service tồn tại và đang active
         cursor.execute("""
             SELECT ServiceId, IsActive
             FROM Services
@@ -132,7 +160,7 @@ def assign_service_to_my_hotel(user_id: int, service_id: int, custom_price=None,
         if not bool(service_row[1]):
             raise HTTPException(status_code=400, detail="Service dang khong hoat dong")
 
-        # check trung
+        # check trùng
         cursor.execute("""
             SELECT HotelServiceId
             FROM HotelServices
@@ -172,7 +200,12 @@ def assign_service_to_my_hotel(user_id: int, service_id: int, custom_price=None,
         conn.close()
 
 
-def update_my_hotel_service(user_id: int, hotel_service_id: int, custom_price=None, is_available=None):
+def update_my_hotel_service(
+    user_id: int,
+    hotel_service_id: int,
+    custom_price=None,
+    is_available=None
+):
     hotel_id = get_receptionist_hotel_id(user_id)
 
     conn = get_conn()
