@@ -1,3 +1,4 @@
+// admin_user.js
 const API_BASE_URL = window.location.origin;
 const accessToken = localStorage.getItem("access_token");
 const currentUser = JSON.parse(localStorage.getItem("current_user") || "null");
@@ -5,6 +6,7 @@ const currentUser = JSON.parse(localStorage.getItem("current_user") || "null");
 const updateLogsList = document.getElementById("updateLogsList");
 const deleteRequestsTableBody = document.getElementById("deleteRequestsBody");
 const logoutBtn = document.getElementById("logoutBtn");
+const adminNameBadge = document.getElementById("adminNameBadge");
 
 const detailOverlay = document.getElementById("detailOverlay");
 const closeDetailBtn = document.getElementById("closeDetailBtn");
@@ -59,6 +61,10 @@ function ensureAdminAccess() {
     return false;
   }
 
+  if (adminNameBadge) {
+    adminNameBadge.textContent = currentUser.full_name || "Admin";
+  }
+
   return true;
 }
 
@@ -108,7 +114,7 @@ function renderUpdateLogs(logs) {
     return;
   }
 
-  updateLogsList.innerHTML = logs.map(log => `
+  updateLogsList.innerHTML = logs.map((log) => `
     <div class="log-item">
       <div class="log-title">
         Người dùng <strong>${escapeHtml(log.full_name)}</strong> đã cập nhật thông tin
@@ -148,7 +154,7 @@ function renderDeleteRequests() {
 
   const filtered = currentFilter === "ALL"
     ? allDeleteRequests
-    : allDeleteRequests.filter(item => item.status === currentFilter);
+    : allDeleteRequests.filter((item) => item.status === currentFilter);
 
   if (filtered.length === 0) {
     deleteRequestsTableBody.innerHTML = `
@@ -159,7 +165,7 @@ function renderDeleteRequests() {
     return;
   }
 
-  deleteRequestsTableBody.innerHTML = filtered.map(item => `
+  deleteRequestsTableBody.innerHTML = filtered.map((item) => `
     <tr>
       <td>${escapeHtml(item.request_id)}</td>
       <td>${escapeHtml(item.user_id)}</td>
@@ -178,7 +184,7 @@ function renderDeleteRequests() {
     </tr>
   `).join("");
 
-  deleteRequestsTableBody.querySelectorAll(".view-btn").forEach(btn => {
+  deleteRequestsTableBody.querySelectorAll(".view-btn").forEach((btn) => {
     btn.addEventListener("click", () => openDetailModal(btn.dataset.requestId));
   });
 }
@@ -197,7 +203,6 @@ async function openDetailModal(requestId) {
 
     fillDetailModal(data);
     detailOverlay?.classList.remove("hidden");
-    detailOverlay?.classList.add("show");
     document.body.classList.add("modal-open");
   } catch (error) {
     console.error("openDetailModal error:", error);
@@ -263,6 +268,7 @@ function fillDetailModal(data) {
 
 function closeDetailModal() {
   detailOverlay?.classList.add("hidden");
+  document.body.classList.remove("modal-open");
   currentRequestId = null;
   currentRequestStatus = null;
 }
@@ -336,9 +342,9 @@ function handleLogout() {
 }
 
 function bindEvents() {
-  filterButtons.forEach(btn => {
+  filterButtons.forEach((btn) => {
     btn.addEventListener("click", () => {
-      filterButtons.forEach(b => b.classList.remove("active"));
+      filterButtons.forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
       currentFilter = btn.dataset.status;
       renderDeleteRequests();
