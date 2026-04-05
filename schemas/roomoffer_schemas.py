@@ -38,3 +38,11 @@ class CreateReviewRequest(BaseModel):
     booking_id: int
     rating: int = Field(..., ge=1, le=5)
     comment: Optional[str] = None
+
+class CreateBookingRequest(BaseModel):
+    check_in_date: str
+    check_out_date: str
+    adults: int
+    children: int = 0
+    number_of_rooms: int = 1
+    special_request: Optional[str] = None

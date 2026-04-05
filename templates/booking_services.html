@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chọn dịch vụ</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #f5f3ee;
+      --card: #ffffff;
+      --line: #ece7df;
+      --line-soft: #f0ece5;
+      --text: #1f2937;
+      --muted: #7b8190;
+      --blue: #2f57c6;
+      --blue-hover: #284aac;
+      --gold: #d5a243;
+      --soft-blue: #eef3ff;
+      --soft-gold: #fbf6ea;
+      --soft-bg: #faf8f4;
+      --shadow: 0 10px 30px rgba(31, 41, 55, 0.06);
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background:
+        radial-gradient(circle at top left, #faf7f0 0%, #f5f3ee 45%),
+        var(--bg);
+      color: var(--text);
+    }
+
+    a {
+      text-decoration: none;
+    }
+
+    button {
+      font-family: inherit;
+    }
+
+    /* ===== TOP NAV ===== */
+    .top-booking-nav {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 40px;
+      min-height: 78px;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+
+    .booking-nav-left,
+    .booking-nav-right {
+      width: 220px;
+      display: flex;
+      align-items: center;
+    }
+
+    .booking-nav-left {
+      justify-content: flex-start;
+    }
+
+    .booking-nav-right {
+      justify-content: flex-end;
+    }
+
+    .brand-text {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 38px;
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: 0.2px;
+      user-select: none;
+    }
+
+    .brand-text .stay {
+      color: var(--blue);
+    }
+
+    .brand-text .book {
+      color: var(--gold);
+      font-style: italic;
+      margin-left: 2px;
+    }
+
+    .booking-nav-center {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 22px;
+    }
+
+    .step-item {
+      display: flex;
+      align-items: center;
+      color: #8b8f9c;
+      font-size: 15px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .step-circle {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #d7d9df;
+      color: #6b7280;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .step-label {
+      margin-left: 10px;
+    }
+
+    .step-line {
+      width: 95px;
+      height: 3px;
+      background: #d7d9df;
+      border-radius: 999px;
+      margin-left: 14px;
+    }
+
+    .step-item.active .step-circle,
+    .step-item.done .step-circle {
+      background: var(--blue);
+      color: #fff;
+      box-shadow: 0 0 0 6px rgba(47, 87, 198, 0.08);
+    }
+
+    .step-item.active .step-label,
+    .step-item.done .step-label {
+      color: var(--blue);
+      font-weight: 700;
+    }
+
+    .step-item.active .step-line,
+    .step-item.done .step-line {
+      background: var(--blue);
+    }
+
+    /* ===== PAGE ===== */
+    .page-wrap {
+      padding: 34px 20px 48px;
+    }
+
+    .container {
+      max-width: 1120px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 18px;
+      padding: 26px;
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      margin-bottom: 22px;
+    }
+
+    .hero-card {
+      padding: 28px;
+      background:
+        linear-gradient(135deg, rgba(47, 87, 198, 0.06), rgba(213, 162, 67, 0.06)),
+        #ffffff;
+    }
+
+    h1 {
+      margin-top: 0;
+      margin-bottom: 10px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 34px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.2;
+    }
+
+    h2 {
+      margin-top: 0;
+      margin-bottom: 18px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 14px;
+      margin: 0;
+      line-height: 1.6;
+    }
+
+    .header-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin-top: 22px;
+    }
+
+    .hero-info-box {
+      background: linear-gradient(135deg, var(--soft-blue), #ffffff);
+      border: 1px solid #dfe8ff;
+      border-radius: 18px;
+      padding: 22px;
+    }
+
+    .hero-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--blue);
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .hero-booking {
+      font-size: 30px;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 8px;
+      line-height: 1.2;
+    }
+
+    .hero-sub {
+      color: #4b5563;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .hero-total-box {
+      background: linear-gradient(135deg, var(--soft-gold), #fff);
+      border: 1px solid #f0e4c5;
+      border-radius: 18px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .hero-total-label {
+      font-size: 13px;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: #9a6d17;
+      letter-spacing: 0.4px;
+      margin-bottom: 8px;
+    }
+
+    .hero-total-value {
+      font-size: 34px;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1.1;
+      margin-bottom: 8px;
+    }
+
+    .hero-total-note {
+      color: #6b7280;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .service-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-top: 18px;
+    }
+
+    .service-item {
+      border: 1px solid #ebe5db;
+      border-radius: 16px;
+      padding: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+      background: linear-gradient(180deg, #ffffff 0%, #faf8f4 100%);
+      transition: 0.2s ease;
+    }
+
+    .service-item:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 18px rgba(31, 41, 55, 0.05);
+    }
+
+    .service-info {
+      flex: 1;
+      min-width: 280px;
+    }
+
+    .service-top {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    .service-name {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1.3;
+    }
+
+
+    .service-desc {
+      color: #6b7280;
+      font-size: 14px;
+      margin-bottom: 10px;
+      line-height: 1.7;
+    }
+
+    .service-meta {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      flex-wrap: wrap;
+    }
+
+    .service-price {
+      color: var(--blue);
+      font-weight: 800;
+      font-size: 18px;
+    }
+
+    .service-selected {
+      font-size: 13px;
+      color: #9a6d17;
+      background: #fbf6ea;
+      border: 1px solid #f1e3bc;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-weight: 700;
+    }
+
+    .qty-panel {
+      min-width: 250px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: flex-end;
+    }
+
+    .qty-label {
+      color: #6b7280;
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .qty-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .qty-btn {
+      width: 42px;
+      height: 42px;
+      border: none;
+      border-radius: 12px;
+      background: #e9edf8;
+      color: var(--blue);
+      font-size: 22px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
+
+    .qty-btn:hover {
+      background: #dbe4fb;
+      transform: translateY(-1px);
+    }
+
+    .qty-input {
+      width: 84px;
+      text-align: center;
+      padding: 10px 8px;
+      border: 1px solid #ddd6cb;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 700;
+      background: #fff;
+      color: #111827;
+      outline: none;
+    }
+
+    .qty-input:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(47, 87, 198, 0.08);
+    }
+
+    .qty-total {
+      font-size: 14px;
+      color: #4b5563;
+      font-weight: 600;
+    }
+
+    .summary-box {
+      margin-top: 24px;
+      background: linear-gradient(180deg, #ffffff 0%, #faf8f4 100%);
+      border: 1px solid #ebe5db;
+      border-radius: 16px;
+      padding: 20px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .summary-mini {
+      border: 1px solid var(--line-soft);
+      background: #fff;
+      border-radius: 14px;
+      padding: 16px;
+    }
+
+    .summary-mini .label {
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      letter-spacing: 0.4px;
+    }
+
+    .summary-mini .value {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1.2;
+    }
+
+    .summary-banner {
+      border-radius: 16px;
+      padding: 18px 20px;
+      background: linear-gradient(135deg, var(--blue), #3f66d1);
+      color: #fff;
+      box-shadow: 0 12px 24px rgba(47, 87, 198, 0.18);
+    }
+
+    .summary-banner .label {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 700;
+      opacity: 0.9;
+      margin-bottom: 8px;
+    }
+
+    .summary-banner .value {
+      font-size: 34px;
+      font-weight: 800;
+      line-height: 1.15;
+    }
+
+    .action-row {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-top: 22px;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 12px;
+      padding: 13px 20px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 14px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      min-height: 48px;
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, var(--blue), #3d65d0);
+      color: #fff;
+      box-shadow: 0 12px 24px rgba(47, 87, 198, 0.18);
+    }
+
+    .btn-success:hover {
+      background: linear-gradient(135deg, var(--blue-hover), #3359c0);
+      transform: translateY(-1px);
+      box-shadow: 0 14px 28px rgba(47, 87, 198, 0.22);
+    }
+
+    .btn-secondary {
+      background: #f3f4f6;
+      color: #374151;
+      border: 1px solid #e5e7eb;
+    }
+
+    .btn-secondary:hover {
+      background: #e9ebef;
+    }
+
+    .btn-primary {
+      background: #1f2937;
+      color: #ffffff;
+      box-shadow: 0 10px 20px rgba(31, 41, 55, 0.12);
+    }
+
+    .btn-primary:hover {
+      background: #111827;
+      transform: translateY(-1px);
+    }
+
+    .result-box {
+      margin-top: 18px;
+      padding: 18px;
+      border-radius: 14px;
+      border: 1px solid #ebe5db;
+      background: #faf8f4;
+      display: none;
+      line-height: 1.6;
+      font-size: 15px;
+    }
+
+    .empty-box {
+      padding: 18px;
+      border-radius: 14px;
+      background: #faf8f4;
+      border: 1px dashed #d6cdc0;
+      color: #6b7280;
+      line-height: 1.7;
+    }
+
+    .note-box {
+      margin-top: 16px;
+      border-radius: 14px;
+      border: 1px dashed #d9d2c5;
+      background: #fcfbf8;
+      padding: 16px 18px;
+      color: #6b7280;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    @media (max-width: 992px) {
+      .top-booking-nav {
+        padding: 16px 18px;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .booking-nav-left,
+      .booking-nav-right {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .booking-nav-center {
+        flex-wrap: wrap;
+        gap: 14px;
+      }
+
+      .step-line {
+        width: 48px;
+      }
+
+      .hero-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .page-wrap {
+        padding: 18px 12px 30px;
+      }
+
+      .service-item {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .qty-panel {
+        min-width: 100%;
+        align-items: flex-start;
+      }
+
+      .summary-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .action-row {
+        flex-direction: column;
+      }
+
+      .btn {
+        width: 100%;
+      }
+
+      h1 {
+        font-size: 28px;
+      }
+
+      h2 {
+        font-size: 24px;
+      }
+
+      .brand-text {
+        font-size: 32px;
+      }
+
+      .hero-booking,
+      .hero-total-value,
+      .summary-banner .value {
+        font-size: 28px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="top-booking-nav">
+    <div class="booking-nav-left">
+      <div class="brand-text">
+        <span class="stay">Stay</span><span class="book">Book</span>
+      </div>
+    </div>
+
+    <div class="booking-nav-center">
+      <div class="step-item done">
+        <div class="step-circle">1</div>
+        <div class="step-label">Thông tin</div>
+        <div class="step-line"></div>
+      </div>
+
+      <div class="step-item active">
+        <div class="step-circle">2</div>
+        <div class="step-label">Dịch vụ</div>
+        <div class="step-line"></div>
+      </div>
+
+      <div class="step-item">
+        <div class="step-circle">3</div>
+        <div class="step-label">Thanh toán</div>
+      </div>
+    </div>
+
+    <div class="booking-nav-right"></div>
+  </div>
+
+  <div class="page-wrap">
+    <div class="container">
+      <div class="card hero-card">
+        <div class="header-actions">
+          <div>
+            <h1>Chọn dịch vụ thêm</h1>
+            <p class="muted">Bạn có thể chọn thêm dịch vụ cho booking trước khi thanh toán. Nếu booking đã có dịch vụ trước đó, số lượng sẽ được hiển thị sẵn để bạn chỉnh sửa tiếp.</p>
+          </div>
+        </div>
+
+        <div class="hero-grid">
+          <div class="hero-info-box">
+            <div class="hero-label">Booking hiện tại</div>
+            <div class="hero-booking">Mã booking #<span id="bookingIdText">...</span></div>
+            <div class="hero-sub">
+              Chọn số lượng dịch vụ phù hợp với nhu cầu của bạn. Khi bấm <strong>Thêm dịch vụ</strong>, hệ thống sẽ cập nhật lại dữ liệu dịch vụ của booking này.
+            </div>
+          </div>
+
+          <div class="hero-total-box">
+            <div class="hero-total-label">Tổng tiền dịch vụ thêm</div>
+            <div class="hero-total-value" id="serviceTotalHero">0 ₫</div>
+            <div class="hero-total-note">Khoản này sẽ được cộng vào tổng tiền booking trước khi sang bước thanh toán.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Danh sách dịch vụ</h2>
+        <div id="serviceList" class="service-list"></div>
+
+        <div class="summary-box">
+          <div class="summary-grid">
+            <div class="summary-mini">
+              <div class="label">Số dịch vụ khả dụng</div>
+              <div class="value" id="serviceCountText">0</div>
+            </div>
+
+            <div class="summary-mini">
+              <div class="label">Tổng số lượng đã chọn</div>
+              <div class="value" id="selectedQtyText">0</div>
+            </div>
+          </div>
+
+          <div class="summary-banner">
+            <div class="label">Tổng tiền dịch vụ thêm</div>
+            <div class="value" id="serviceTotalText">0 ₫</div>
+          </div>
+
+          <div class="note-box">
+            Nếu bạn giảm số lượng xuống 0 rồi bấm <strong>Thêm dịch vụ</strong>, dịch vụ đó sẽ không còn được lưu cho booking hiện tại.
+          </div>
+        </div>
+
+        <div class="action-row">
+          <button class="btn btn-success" onclick="submitSelectedServices()">Thêm dịch vụ</button>
+          <a id="skipPaymentBtn" class="btn btn-secondary" href="#">Bỏ qua và thanh toán</a>
+          <a id="goPaymentBtn" class="btn btn-primary" href="#">Đi đến thanh toán</a>
+        </div>
+
+        <div id="resultBox" class="result-box"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const bookingId = params.get("booking_id");
+
+    const serviceListEl = document.getElementById("serviceList");
+    const resultBox = document.getElementById("resultBox");
+    const serviceTotalText = document.getElementById("serviceTotalText");
+    const serviceTotalHero = document.getElementById("serviceTotalHero");
+    const selectedQtyText = document.getElementById("selectedQtyText");
+    const serviceCountText = document.getElementById("serviceCountText");
+    const bookingIdText = document.getElementById("bookingIdText");
+    const skipPaymentBtn = document.getElementById("skipPaymentBtn");
+    const goPaymentBtn = document.getElementById("goPaymentBtn");
+
+    let services = [];
+    let hotelId = null;
+
+    bookingIdText.innerText = bookingId || "Không có";
+
+    function formatMoney(value) {
+      return new Intl.NumberFormat("vi-VN", {
+        style: "currency",
+        currency: "VND",
+        maximumFractionDigits: 0
+      }).format(value || 0);
+    }
+
+    function updatePaymentLinks() {
+      const paymentUrl = `/api/bookinghotels/payment-page?booking_id=${bookingId}`;
+      skipPaymentBtn.href = paymentUrl;
+      goPaymentBtn.href = paymentUrl;
+    }
+
+    function updateTotal() {
+      let total = 0;
+      let selectedQty = 0;
+
+      services.forEach(service => {
+        const input = document.getElementById(`qty_${service.hotelservice_id}`);
+        if (!input) return;
+
+        const quantity = Number(input.value || 0);
+        total += Number(service.price || 0) * quantity;
+        selectedQty += quantity;
+      });
+
+      serviceTotalText.innerText = formatMoney(total);
+      serviceTotalHero.innerText = formatMoney(total);
+      selectedQtyText.innerText = selectedQty;
+      serviceCountText.innerText = services.length;
+    }
+
+    function changeQty(hotelserviceId, delta) {
+      const input = document.getElementById(`qty_${hotelserviceId}`);
+      if (!input) return;
+
+      let value = Number(input.value || 0);
+      value += delta;
+
+      if (value < 0) value = 0;
+
+      input.value = value;
+      updateServiceLineTotal(hotelserviceId);
+      updateTotal();
+    }
+
+    function sanitizeQty(hotelserviceId) {
+      const input = document.getElementById(`qty_${hotelserviceId}`);
+      if (!input) return;
+
+      let value = Number(input.value || 0);
+      if (isNaN(value) || value < 0) value = 0;
+
+      input.value = Math.floor(value);
+      updateServiceLineTotal(hotelserviceId);
+      updateTotal();
+    }
+
+    function updateServiceLineTotal(hotelserviceId) {
+      const service = services.find(s => Number(s.hotelservice_id) === Number(hotelserviceId));
+      const input = document.getElementById(`qty_${hotelserviceId}`);
+      const totalEl = document.getElementById(`line_total_${hotelserviceId}`);
+      if (!service || !input || !totalEl) return;
+
+      const quantity = Number(input.value || 0);
+      totalEl.innerText = `Thành tiền: ${formatMoney(Number(service.price || 0) * quantity)}`;
+    }
+
+    function renderServices() {
+  if (!services || services.length === 0) {
+    serviceListEl.innerHTML = `
+      <div class="empty-box">
+        Khách sạn này hiện chưa có dịch vụ khả dụng.
+      </div>
+    `;
+    updateTotal();
+    return;
+  }
+
+  serviceListEl.innerHTML = services.map(service => {
+    const selectedQuantity = Number(service.selected_quantity || 0);
+    const lineTotal = Number(service.price || 0) * selectedQuantity;
+
+    return `
+      <div class="service-item">
+        <div class="service-info">
+          <div class="service-top">
+            <div class="service-name">${service.service_name}</div>
+            ${selectedQuantity > 0 ? `<div class="service-selected">Đã chọn trước đó: ${selectedQuantity}</div>` : ""}
+          </div>
+
+          <div class="service-desc">${service.description || "Không có mô tả"}</div>
+
+          <div class="service-meta">
+            <div class="service-price">${formatMoney(service.price)}</div>
+            <div id="line_total_${service.hotelservice_id}" class="qty-total">
+              Thành tiền: ${formatMoney(lineTotal)}
+            </div>
+          </div>
+        </div>
+
+        <div class="qty-panel">
+          <div class="qty-label">Số lượng</div>
+
+          <div class="qty-box">
+            <button class="qty-btn" type="button" onclick="changeQty(${service.hotelservice_id}, -1)">-</button>
+            <input
+              id="qty_${service.hotelservice_id}"
+              class="qty-input"
+              type="number"
+              min="0"
+              value="${selectedQuantity}"
+              oninput="sanitizeQty(${service.hotelservice_id})"
+            />
+            <button class="qty-btn" type="button" onclick="changeQty(${service.hotelservice_id}, 1)">+</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  updateTotal();
+}
+
+    async function loadServices() {
+      if (!bookingId) {
+        serviceListEl.innerHTML = `<div class="empty-box">Thiếu booking_id.</div>`;
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem("access_token");
+
+        const response = await fetch(`/api/bookinghotels/available-services/${bookingId}`, {
+          method: "GET",
+          headers: {
+            "Authorization": "Bearer " + token
+          }
+        });
+
+        const rawText = await response.text();
+        let data = {};
+
+        try {
+          data = rawText ? JSON.parse(rawText) : {};
+        } catch {
+          throw new Error(rawText || "Server không trả về JSON");
+        }
+
+        if (!response.ok) {
+          throw new Error(data.detail || "Không tải được danh sách dịch vụ");
+        }
+
+        services = (data.services || []).map(service => ({
+          ...service,
+          selected_quantity: Number(service.selected_quantity || 0)
+        }));
+
+        hotelId = data.hotel_id || "";
+        renderServices();
+      } catch (error) {
+        serviceListEl.innerHTML = `
+          <div class="empty-box" style="color:red;">
+            Lỗi tải dịch vụ: ${error.message}
+          </div>
+        `;
+      }
+    }
+
+    async function submitSelectedServices() {
+      resultBox.style.display = "block";
+      resultBox.innerHTML = "Đang cập nhật dịch vụ...";
+
+      const selectedItems = services.map(service => {
+        const input = document.getElementById(`qty_${service.hotelservice_id}`);
+        const quantity = Number(input?.value || 0);
+
+        return {
+          hotelservice_id: service.hotelservice_id,
+          quantity: quantity
+        };
+      });
+
+      try {
+        const token = localStorage.getItem("access_token");
+
+        const response = await fetch(`/api/bookinghotels/add-services/${bookingId}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + token
+          },
+          body: JSON.stringify(selectedItems)
+        });
+
+        const rawText = await response.text();
+        let data = {};
+
+        try {
+          data = rawText ? JSON.parse(rawText) : {};
+        } catch {
+          throw new Error(rawText || "Server không trả về JSON");
+        }
+
+        if (!response.ok) {
+          throw new Error(data.detail || "Không cập nhật được dịch vụ");
+        }
+
+        resultBox.innerHTML = `
+          <div style="color:green; margin-bottom:10px;">
+            <strong>Cập nhật dịch vụ thành công</strong>
+          </div>
+          <div><strong>Booking ID:</strong> ${data.booking_id}</div>
+          <div><strong>Tổng tiền dịch vụ:</strong> ${formatMoney(data.added_service_cost)}</div>
+          <div><strong>Tổng tiền booking mới:</strong> ${formatMoney(data.new_total_amount)}</div>
+          <div style="margin-top:14px;">
+            <a class="btn btn-primary" href="/api/bookinghotels/payment-page?booking_id=${data.booking_id}">
+              Đi đến thanh toán
+            </a>
+          </div>
+        `;
+
+        await loadServices();
+      } catch (error) {
+        resultBox.innerHTML = `
+          <div style="color:red;">
+            <strong>Lỗi:</strong> ${error.message}
+          </div>
+        `;
+      }
+    }
+
+    updatePaymentLinks();
+    loadServices();
+  </script>
+</body>
+</html>
