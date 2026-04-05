@@ -21,8 +21,7 @@ from api.admin_users import router as admin_users_router
 from api.user_account import router as user_account_router
 from api.booking_hotel import hotel_router, review_router
 from api.receptionist_api import router as receptionist_router
-from api.admin_booking_api import router as admin_booking_router
-
+from api.receptionist_booking_api import router as receptionist_booking_router
 
 
 # ===== INIT APP =====
@@ -56,8 +55,7 @@ app.include_router(user_account_router)
 app.include_router(hotel_router)
 app.include_router(review_router)
 app.include_router(receptionist_router)  
-app.include_router(admin_booking_router)  # approved delete request from user
-
+app.include_router(receptionist_booking_router)
 # ===== UI ROUTES =====
 
 # Trang home
@@ -139,5 +137,13 @@ def receptionist_hotel_services_page(request: Request):
     return templates.TemplateResponse(
         request=request,
         name="receptionist/receptionist_hotel_service.html",
+        context={}
+    )
+
+@app.get("/receptionist/booking-payment-page", response_class=HTMLResponse)
+def receptionist_booking_payment_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="receptionist/receptionist_booking_payment.html",
         context={}
     )
