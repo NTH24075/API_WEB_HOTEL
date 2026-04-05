@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Receptionist Hotel Service Dashboard</title>
+  <link rel="stylesheet" href="/static/css/receptionist/receptionist_hotel_service.css" />
+</head>
+<body>
+  <!-- =========================
+       TOPBAR
+  ========================== -->
+  <header class="admin-topbar">
+    <div>
+      <p class="topbar-kicker">StayBook Receptionist</p>
+      <h1>Quản lí dịch vụ khách sạn</h1>
+    </div>
+
+    <div class="topbar-actions">
+      <span id="receptionistNameBadge" class="admin-badge">Receptionist</span>
+      <button id="logoutBtn" class="ghost-btn" type="button">Đăng xuất</button>
+    </div>
+  </header>
+
+  <!-- =========================
+       MAIN LAYOUT
+  ========================== -->
+  <main class="dashboard-wrap receptionist-layout">
+
+    <!-- =========================
+         CỘT TRÁI: GÁN SERVICE
+    ========================== -->
+    <section class="left-column card">
+      <div class="section-head">
+        <h2>Gán dịch vụ cho khách sạn</h2>
+        <p>Chọn dịch vụ từ hệ thống và gán cho khách sạn bạn đang quản lí.</p>
+      </div>
+
+      <form id="assignServiceForm" class="stack-form">
+        <div class="field-group">
+          <label for="serviceSelect">Chọn dịch vụ</label>
+          <select id="serviceSelect" required>
+            <option value="">-- Chọn dịch vụ --</option>
+          </select>
+        </div>
+
+        <div id="servicePreviewBox" class="info-box empty-state">
+          Chọn một dịch vụ để xem mô tả và giá mặc định.
+        </div>
+
+        <div class="field-group">
+          <label for="customPriceInput">Giá riêng của khách sạn (không bắt buộc)</label>
+          <input
+            id="customPriceInput"
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="Ví dụ: 150000"
+          />
+        </div>
+
+        <div class="field-group inline-check">
+          <input id="isAvailableInput" type="checkbox" checked />
+          <label for="isAvailableInput">Đang khả dụng</label>
+        </div>
+
+        <button type="submit" class="primary-btn full-btn">Gán dịch vụ</button>
+      </form>
+
+      <div class="mini-divider"></div>
+
+      <div class="section-head small-head">
+        <h3>Ghi chú</h3>
+      </div>
+      <div class="info-box">
+        - Nếu không nhập giá riêng thì hệ thống sẽ dùng giá mặc định.<br />
+        - Receptionist chỉ được quản lí dịch vụ của khách sạn đã được gán.
+      </div>
+    </section>
+
+    <!-- =========================
+         CỘT PHẢI: QUẢN LÍ SERVICE HOTEL
+    ========================== -->
+    <section class="right-column card rounded-panel">
+      <div class="section-head">
+        <h2>Dịch vụ của khách sạn</h2>
+        <p>Quản lí các dịch vụ đang áp dụng cho khách sạn của bạn.</p>
+      </div>
+
+      <!-- HOTEL INFO -->
+      <div class="hotel-info-box">
+        <div class="hotel-info-item">
+          <span>Tên khách sạn</span>
+          <strong id="hotelNameText">Đang tải...</strong>
+        </div>
+
+        <div class="hotel-info-item wide">
+          <span>Địa chỉ khách sạn</span>
+          <strong id="hotelAddressText">Đang tải...</strong>
+        </div>
+      </div>
+
+      <!-- FORM FILTER -->
+      <form id="filterForm" class="search-grid compact-grid">
+        <div class="field-group">
+          <label for="searchKeyword">Tìm theo tên dịch vụ</label>
+          <input id="searchKeyword" type="text" placeholder="Ví dụ: Giặt ủi" />
+        </div>
+
+        <div class="field-group">
+          <label for="availabilityFilter">Trạng thái khả dụng</label>
+          <select id="availabilityFilter">
+            <option value="all">Tất cả</option>
+            <option value="available">Đang khả dụng</option>
+            <option value="unavailable">Tạm ngưng</option>
+          </select>
+        </div>
+
+        <div class="field-group">
+          <label for="minPriceFilter">Giá tối thiểu</label>
+          <input id="minPriceFilter" type="number" min="0" placeholder="Ví dụ: 50000" />
+        </div>
+
+        <div class="field-group">
+          <label for="maxPriceFilter">Giá tối đa</label>
+          <input id="maxPriceFilter" type="number" min="0" placeholder="Ví dụ: 300000" />
+        </div>
+
+        <div id="priceFilterError" class="filter-error hidden">
+          Giá tối thiểu không được lớn hơn giá tối đa.
+        </div>
+
+        <div class="search-actions">
+          <button type="submit" class="primary-btn">Lọc dữ liệu</button>
+          <button type="button" id="resetFilterBtn" class="ghost-btn">Reset</button>
+        </div>
+      </form>
+
+      <!-- HEADER KẾT QUẢ -->
+      <div class="result-head">
+        <h3>Danh sách dịch vụ đã gán</h3>
+        <span id="resultCount" class="result-count">0 kết quả</span>
+      </div>
+
+      <!-- TABLE -->
+      <div class="request-table-wrap">
+        <table class="request-table">
+          <thead>
+            <tr>
+              <th>HotelService ID</th>
+              <th>Tên dịch vụ</th>
+              <th>Giá mặc định</th>
+              <th>Giá áp dụng</th>
+              <th>Đơn vị</th>
+              <th>Khả dụng</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="hotelServiceTableBody">
+            <tr>
+              <td colspan="7" class="table-empty">Đang tải dữ liệu...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- PHÂN TRANG -->
+      <div id="paginationWrap" class="pagination-wrap hidden">
+        <button id="prevPageBtn" class="ghost-btn" type="button">← Trang trước</button>
+        <div id="paginationNumbers" class="pagination-numbers"></div>
+        <button id="nextPageBtn" class="ghost-btn" type="button">Trang sau →</button>
+      </div>
+    </section>
+
+    <!-- =========================
+         CỘT DƯỚI: SERVICE HỆ THỐNG
+    ========================== -->
+    <section class="bottom-column card bottom-service-column">
+      <div class="bottom-section-head">
+        <h2>Dịch vụ đang hoạt động trong hệ thống</h2>
+        <p>Dùng để receptionist chọn nhanh và gán vào khách sạn.</p>
+      </div>
+
+      <div class="catalog-grid" id="serviceCatalogGrid">
+        <div class="empty-state">Đang tải danh sách dịch vụ...</div>
+      </div>
+    </section>
+  </main>
+
+  <!-- =========================
+       MODAL CHI TIẾT / CẬP NHẬT
+  ========================== -->
+  <div id="detailOverlay" class="overlay hidden">
+    <div class="floating-panel">
+      <button id="closeDetailBtn" class="close-btn" type="button">×</button>
+
+      <div class="floating-panel-body">
+        <div class="detail-top">
+          <h3>Cập nhật dịch vụ khách sạn</h3>
+          <span id="detailAvailabilityBadge" class="status-chip">Trạng thái</span>
+        </div>
+
+        <div class="detail-block">
+          <h4>Thông tin hiện tại</h4>
+          <div id="detailHotelServiceInfo" class="detail-grid"></div>
+        </div>
+
+        <div class="detail-block">
+          <h4>Mô tả dịch vụ</h4>
+          <p id="detailDescription" class="reason-box">—</p>
+        </div>
+
+        <form id="updateHotelServiceForm" class="stack-form modal-form">
+          <div class="field-group">
+            <label for="updateCustomPriceInput">Giá riêng mới</label>
+            <input
+              id="updateCustomPriceInput"
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="Để trống nếu muốn giữ nguyên"
+            />
+          </div>
+
+          <div class="field-group inline-check">
+            <input id="updateIsAvailableInput" type="checkbox" />
+            <label for="updateIsAvailableInput">Đang khả dụng</label>
+          </div>
+
+          <div class="detail-actions">
+            <button type="submit" class="primary-btn">Lưu cập nhật</button>
+            <button type="button" class="danger-btn" id="deleteHotelServiceBtn">Xóa khỏi khách sạn</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================
+       MODAL XÁC NHẬN
+  ========================== -->
+  <div id="confirmOverlay" class="overlay hidden">
+    <div class="confirm-panel">
+      <h3>Xác nhận thao tác</h3>
+      <p id="confirmMessage">Bạn có chắc muốn thực hiện thao tác này không?</p>
+      <div class="confirm-actions">
+        <button id="confirmCancelBtn" class="ghost-btn" type="button">Hủy</button>
+        <button id="confirmOkBtn" class="danger-btn" type="button">Xác nhận</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="/static/js/receptionist/receptionist_hotel_service.js"></script>
+</body>
+</html>
