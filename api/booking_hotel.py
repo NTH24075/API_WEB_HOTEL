@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from datetime import datetime
-from core.database import get_conn
+from core.database import get_db
 from core.dependencies import get_current_user
 from schemas.roomoffer_schemas import (
     CurrentUserAndRoomOfferResponse,
@@ -27,15 +27,15 @@ def booking_confirm_page(request: Request):
 
 @hotel_router.post("/create-booking/{room_offer_id}")
 def create_booking(
-    room_offer_id: int,
-    check_in_date: str,
-    check_out_date: str,
-    adults: int,
-    children: int = 0,
-    number_of_rooms: int = 1,
-    special_request: str = None,
-    db=Depends(get_conn),
-    current_user: dict = Depends(get_current_user)
+        room_offer_id: int,
+        check_in_date: str,
+        check_out_date: str,
+        adults: int,
+        children: int = 0,
+        number_of_rooms: int = 1,
+        special_request: str = None,
+        db=Depends(get_db),
+        current_user: dict = Depends(get_current_user)
 ):
     user_id = current_user.get("UserId") or current_user.get("user_id")
 
@@ -469,9 +469,9 @@ def booking_services_page(request: Request):
 
 @hotel_router.delete("/delete-booking/{booking_id}")
 def delete_booking(
-    booking_id: int,
-    db=Depends(get_conn),
-    current_user: dict = Depends(get_current_user)
+        booking_id: int,
+        db=Depends(get_db),
+        current_user: dict = Depends(get_current_user)
 ):
     cursor = db.cursor()
 
@@ -484,7 +484,7 @@ def delete_booking(
             FROM Bookings
             WHERE BookingId = ?
         """, (booking_id,))
-        
+
         row = cursor.fetchone()
 
         if not row:
@@ -502,7 +502,7 @@ def delete_booking(
             WHERE BookingId = ?
         """, (booking_id,))
 
-        # 4. Xoá Payments 
+        # 4. Xoá Payments
         cursor.execute("""
             DELETE FROM Payments
             WHERE BookingId = ?
@@ -765,11 +765,12 @@ def create_payment(
     finally:
         cursor.close()
 
+
 @hotel_router.post("/confirm-payment/{payment_id}")
 def confirm_payment(
-    payment_id: int,
-    db=Depends(get_conn),
-    current_user: dict = Depends(get_current_user)
+        payment_id: int,
+        db=Depends(get_db),
+        current_user: dict = Depends(get_current_user)
 ):
     cursor = db.cursor()
 
@@ -782,7 +783,7 @@ def confirm_payment(
             FROM Payments
             WHERE PaymentId = ?
         """, (payment_id,))
-        
+
         payment = cursor.fetchone()
 
         if not payment:
@@ -804,7 +805,7 @@ def confirm_payment(
             FROM Bookings
             WHERE BookingId = ?
         """, (booking_id,))
-        
+
         booking = cursor.fetchone()
 
         if not booking:
@@ -860,11 +861,12 @@ def confirm_payment(
     finally:
         cursor.close()
 
+
 @hotel_router.delete("/delete-payment/{payment_id}")
 def delete_payment(
-    payment_id: int,
-    db=Depends(get_conn),
-    current_user: dict = Depends(get_current_user)
+        payment_id: int,
+        db=Depends(get_db),
+        current_user: dict = Depends(get_current_user)
 ):
     cursor = db.cursor()
 
@@ -877,7 +879,7 @@ def delete_payment(
             FROM Payments
             WHERE PaymentId = ?
         """, (payment_id,))
-        
+
         payment = cursor.fetchone()
 
         if not payment:
@@ -907,7 +909,7 @@ def delete_payment(
             FROM Payments
             WHERE BookingId = ? AND PaymentStatus = 'UnPaid'
         """, (booking_id,))
-        
+
         unpaid_count = cursor.fetchone()[0]
 
         # ========================
@@ -944,8 +946,8 @@ def delete_payment(
 
 @hotel_router.get("/my-paid-bookings")
 def get_my_paid_bookings(
-    db=Depends(get_conn),
-    current_user: dict = Depends(get_current_user)
+        db=Depends(get_db),
+        current_user: dict = Depends(get_current_user)
 ):
     cursor = db.cursor()
 
@@ -1058,34 +1060,15 @@ def get_my_paid_bookings(
         cursor.close()
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # Router cho Reviews
 review_router = APIRouter(prefix="/api/reviews", tags=["Reviews"])
 
 
 @review_router.post("/create")
 def create_review(
-    payload: CreateReviewRequest,
-    db=Depends(get_conn),
-    current_user: dict = Depends(get_current_user)
+        payload: CreateReviewRequest,
+        db=Depends(get_db),
+        current_user: dict = Depends(get_current_user)
 ):
     user_id = current_user.get("UserId") or current_user.get("user_id")
 
@@ -1173,7 +1156,7 @@ def create_review(
             CreatedAt,
             Status
         )
-        VALUES (?, ?, ?, ?, ?, GETDATE(), ?)`
+        VALUES (?, ?, ?, ?, ?, GETDATE(), ?)
     """
     cursor.execute(
         insert_query,
@@ -1202,4 +1185,3 @@ def create_review(
         "hotel_id": hotel_id,
         "user_id": user_id
     }
-

@@ -25,14 +25,24 @@ _DB_DRIVER   = os.getenv("DB_DRIVER",   "ODBC Driver 17 for SQL Server")
 
 def get_connection() -> pyodbc.Connection:
     """Tạo connection mới tới SQL Server."""
-    conn_str = (
-        f"DRIVER={{{_DB_DRIVER}}};"
-        f"SERVER={_DB_SERVER};"
-        f"DATABASE={_DB_NAME};"
-        f"UID={_DB_USER};"
-        f"PWD={_DB_PASSWORD};"
-        "TrustServerCertificate=yes;"
-    )
+    if _DB_USER and _DB_PASSWORD:
+        conn_str = (
+            "Driver={ODBC Driver 17 for SQL Server};"
+            f"Server={_DB_SERVER};"
+            f"Database={_DB_NAME};"
+            f"UID={_DB_USER};"
+            f"PWD={_DB_PASSWORD};"
+            "TrustServerCertificate=yes;"
+        )
+    else:
+        conn_str = (
+            "Driver={ODBC Driver 17 for SQL Server};"
+            f"Server=DESKTOP-8872D2D;"
+            f"Database=QuanLyKhachSan;"
+            "Trusted_Connection=yes;"
+            "TrustServerCertificate=yes;"
+        )
+
     return pyodbc.connect(conn_str, timeout=10)
 
 

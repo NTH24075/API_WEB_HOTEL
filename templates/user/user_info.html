@@ -7,15 +7,27 @@
   <link rel="stylesheet" href="/static/css/user/user_info.css" />
 </head>
 <body>
-  <header class="user-topbar">
-    <div>
-      <p class="eyebrow">StayBook User</p>
-      <h1>Thông tin tài khoản</h1>
-    </div>
-    <div class="topbar-right">
-      <button type="button" id="logoutBtn" class="ghost-btn">Đăng xuất</button>
-    </div>
-  </header>
+  <header class="site-topbar">
+  <div class="topbar-left">
+    <a href="/auth-page" class="brand">StayBook</a>
+    <nav class="topbar-nav">
+      <a href="/auth-page">Khách sạn</a>
+      <a href="#">Chuyến đi của tôi</a>
+      <a href="#">Hỗ trợ</a>
+    </nav>
+  </div>
+
+  <div class="topbar-right">
+    <button id="logoutBtn" class="logout-btn" type="button">Đăng xuất</button>
+  </div>
+</header>
+
+<header class="user-topbar page-head">
+  <div>
+    <p class="eyebrow">StayBook User</p>
+    <h1>Thông tin tài khoản</h1>
+  </div>
+</header>
 
   <main class="user-page-wrap">
     <section class="profile-card">

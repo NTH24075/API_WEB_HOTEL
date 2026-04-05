@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, Query
 from core.dependencies import require_admin
-
-from services.admin_hotel_service import (
+from services.admin_booking_service import (
     get_all_bookings,
     get_booking_detail,
     check_in_booking,
@@ -9,7 +8,6 @@ from services.admin_hotel_service import (
     cancel_booking,
     get_all_payments
 )
-
 
 router = APIRouter(prefix="/admin/bookings", tags=["Admin Booking"])
 

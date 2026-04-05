@@ -1,9 +1,14 @@
+import os
 from datetime import datetime, timedelta
 from jose import jwt, JWTError
+from dotenv import load_dotenv
 
-SECRET_KEY = "luu_minh_thang_dep_trai"
+load_dotenv()
+
+SECRET_KEY = os.getenv("SECRET_KEY", "luu_minh_thang_dep_trai")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60;
+ACCESS_TOKEN_EXPIRE_MINUTES = 60
+
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()

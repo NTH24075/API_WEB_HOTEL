@@ -1,11 +1,14 @@
 import os
+import random
 from typing import Optional
+from warnings import filters
 
 import requests
 from dotenv import load_dotenv
-from fastapi import HTTPException
+from fastapi import HTTPException, params
 
 from core.database import get_conn
+from services.hotel_pricing_service import build_default_room_offers
 
 load_dotenv()
 
@@ -23,6 +26,21 @@ def normalize_nullable_text(value, use_placeholder: bool = False):
 
     return text
 
+def normalize_star_rating(value, default: float = 3.0):
+    if value is None:
+        return default
+
+    try:
+        rating = float(value)
+
+        if rating < 1:
+            return 1.0
+        if rating > 5:
+            return 5.0
+
+        return round(rating, 1)
+    except (TypeError, ValueError):
+        return default
 
 def geocode_city(city: str):
     if not GEOAPIFY_API_KEY:
@@ -105,8 +123,24 @@ def search_hotels_from_geoapify(city: str, max_results: int = 10):
             "phone": contact.get("phone"),
             "email": contact.get("email"),
             "thumbnail_url": None,
-            "source": "Geoapify"
+            "source": "Geoapify",
+            "star_rating": normalize_star_rating(
+                props.get("stars") or raw.get("stars") or raw.get("hotel_stars"),
+                # ── BUG FIX #2: khi Geoapify không trả về sao, random 1-5 dựa vào external_hotel_code
+                # để mỗi khách sạn có sao cố định, không bị đổi mỗi lần import
+                None  # sẽ xử lý bên dưới
+            )
         })
+
+        # Ghi đè star_rating: nếu Geoapify không có → random seed từ external_hotel_code
+        h = hotels[-1]
+        api_stars = props.get("stars") or raw.get("stars") or raw.get("hotel_stars")
+        if api_stars is not None:
+            h["star_rating"] = normalize_star_rating(api_stars, 3.0)
+        else:
+            seed_str = external_hotel_code or (props.get("name") or "hotel")
+            seed = sum(ord(c) for c in seed_str)
+            h["star_rating"] = float((seed % 5) + 1)   # 1.0 ~ 5.0
 
     return {
         "city_name": geo["city_name"],
@@ -115,6 +149,15 @@ def search_hotels_from_geoapify(city: str, max_results: int = 10):
         "longitude": geo["lon"],
         "hotels": hotels
     }
+
+def generate_city_code(city_name: str) -> str:
+    words = [w for w in city_name.strip().upper().split() if w]
+    if not words:
+        return "UNK"
+    if len(words) == 1:
+        return words[0][:3]
+    code = "".join(word[0] for word in words[:3])
+    return code[:3]
 
 
 def get_or_create_city(cursor, city_name: str, country_name: str, latitude=None, longitude=None):
@@ -129,27 +172,45 @@ def get_or_create_city(cursor, city_name: str, country_name: str, latitude=None,
     row = cursor.fetchone()
 
     if row:
-        return row.CityId
+        if hasattr(row, "CityId"):
+            city_id = row.CityId
+        else:
+            city_id = row[0]
+
+        cursor.execute(
+            """
+            UPDATE Cities
+            SET Latitude = ISNULL(Latitude, ?),
+                Longitude = ISNULL(Longitude, ?),
+                CityCode = ISNULL(CityCode, ?)
+            WHERE CityId = ?
+            """,
+            (latitude, longitude, generate_city_code(city_name), city_id)
+        )
+        return city_id
+
+    city_code = generate_city_code(city_name)
 
     cursor.execute(
         """
-        INSERT INTO Cities (CityName, CountryName, Latitude, Longitude)
+        INSERT INTO Cities (CityName, CountryName, CityCode, Latitude, Longitude)
         OUTPUT INSERTED.CityId
-        VALUES (?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?)
         """,
-        (city_name, country_name, latitude, longitude)
+        (city_name, country_name, city_code, latitude, longitude)
     )
     new_row = cursor.fetchone()
-    return new_row.CityId
-
+    return new_row.CityId if hasattr(new_row, "CityId") else new_row[0]
 
 def find_existing_hotel(
     cursor,
     external_hotel_code: Optional[str],
     hotel_name: str,
     address: Optional[str],
-    city_id: int
-):
+    city_id: int,
+    latitude=None,
+    longitude=None,
+):  # 1. Match theo ExternalHotelCode (chính xác nhất)
     if external_hotel_code:
         cursor.execute(
             """
@@ -163,6 +224,7 @@ def find_existing_hotel(
         if row:
             return row.HotelId
 
+    # 2. Match theo tên + địa chỉ + city
     if address is None:
         cursor.execute(
             """
@@ -183,34 +245,70 @@ def find_existing_hotel(
         )
 
     row = cursor.fetchone()
-    return row.HotelId if row else None
+    if row:
+        return row.HotelId
 
+    # 3. Match theo tọa độ gần (trong vòng ~50m) — tránh trùng khi place_id thay đổi
+    if latitude is not None and longitude is not None:
+        cursor.execute(
+            """
+            SELECT TOP 1 HotelId
+            FROM Hotels
+            WHERE ABS(Latitude - ?) < 0.0005
+              AND ABS(Longitude - ?) < 0.0005
+              AND CityId = ?
+            """,
+            (latitude, longitude, city_id)
+        )
+        row = cursor.fetchone()
+        if row:
+            return row.HotelId
+
+    return None
+
+
+# ── BUG FIX #2: Bảng phòng với giá phong phú, random dựa vào hotel_id ────────
+_ROOM_TEMPLATES = [
+    # (room_type, description, capacity, base_price, beds, policy)
+    ("Phòng Standard",      "Phòng tiêu chuẩn, trang bị đầy đủ tiện nghi cơ bản.",          2,  600_000,  "1 giường đôi, wifi, máy lạnh",          "Miễn phí hủy trước 24h."),
+    ("Phòng Superior",      "Phòng rộng hơn Standard, có ban công nhìn ra thành phố.",       2,  900_000,  "1 giường queen, wifi, máy lạnh, TV",     "Miễn phí hủy trước 48h."),
+    ("Phòng Deluxe",        "Phòng cao cấp, nội thất sang trọng, tầm nhìn đẹp.",             2, 1_400_000, "1 giường king, wifi, bồn tắm",           "Miễn phí hủy trước 48h."),
+    ("Phòng Deluxe Twin",   "Dành cho 2 người, 2 giường đơn thoải mái.",                     2, 1_200_000, "2 giường đơn, wifi, máy lạnh",           "Miễn phí hủy trước 24h."),
+    ("Phòng Family",        "Rộng rãi, phù hợp gia đình có trẻ nhỏ.",                        4, 1_800_000, "1 giường king + 2 giường đơn, wifi",     "Không hoàn tiền sau khi đặt."),
+    ("Phòng Suite",         "Suite hạng sang, phòng khách riêng, minibar.",                  2, 3_200_000, "1 giường king, phòng khách, bồn sục",    "Miễn phí hủy trước 72h."),
+    ("Phòng Junior Suite",  "Không gian mở, khu vực nghỉ ngơi và làm việc tách biệt.",       2, 2_100_000, "1 giường king, sofa, wifi tốc độ cao",   "Miễn phí hủy trước 48h."),
+    ("Phòng Executive",     "Dành cho khách công tác, có khu vực làm việc chuyên nghiệp.",   2, 1_600_000, "1 giường king, bàn làm việc, wifi",      "Miễn phí hủy trước 24h."),
+    ("Phòng Connecting",    "2 phòng liền nhau, lý tưởng cho nhóm hoặc gia đình lớn.",       4, 2_400_000, "2 giường đôi kết nối, wifi",             "Miễn phí hủy trước 48h."),
+    ("Phòng Penthouse",     "Penthouse tầng thượng, tầm nhìn toàn cảnh 360 độ.",             2, 5_500_000, "1 giường king, sân thượng riêng, bồn sục", "Không hoàn tiền sau khi đặt."),
+]
+
+def _random_price_multiplier(hotel_id: int) -> float:
+    """Tạo hệ số nhân giá ngẫu nhiên nhưng cố định cho từng hotel (seed từ hotel_id)."""
+    rng = random.Random(hotel_id * 1337 + 42)
+    return round(rng.uniform(0.7, 1.8), 2)   # ×0.70 ~ ×1.80
 
 def create_default_room_offers(cursor, hotel_id: int):
-    demo_offers = [
-        {
-            "room_type": "Phòng Standard",
-            "description": "Phòng demo để hiển thị UI. Staff có thể chỉnh sửa lại sau.",
-            "capacity": 2,
-            "price_per_night": 850000,
-            "currency": "VND",
-            "available_quantity": 5,
-            "cancellation_policy": "Giá demo cho đồ án, staff có thể cập nhật chính sách hủy sau.",
-            "amenities": "1 giường đôi, wifi, máy lạnh"
-        },
-        {
-            "room_type": "Phòng Deluxe",
-            "description": "Phòng rộng hơn, phù hợp để demo card giá/phòng ở trang detail.",
-            "capacity": 4,
-            "price_per_night": 1250000,
-            "currency": "VND",
-            "available_quantity": 3,
-            "cancellation_policy": "Giá demo cho mục đích học tập, staff có thể cập nhật sau.",
-            "amenities": "2 giường, wifi, máy lạnh, view đẹp"
-        }
-    ]
+    """
+    Tạo 3-5 loại phòng cho khách sạn mới import.
+    Giá được random dựa vào hotel_id để mỗi khách sạn có bộ giá khác nhau
+    nhưng nhất quán (chạy lại không đổi).
+    """
+    rng = random.Random(hotel_id * 7919 + 13)
 
-    for offer in demo_offers:
+    # Chọn ngẫu nhiên 3-5 loại phòng, không trùng
+    num_rooms = rng.randint(3, 5)
+    chosen = rng.sample(_ROOM_TEMPLATES, k=min(num_rooms, len(_ROOM_TEMPLATES)))
+
+    multiplier = _random_price_multiplier(hotel_id)
+
+    for room_type, description, capacity, base_price, amenities, policy in chosen:
+        # Làm tròn giá đến 50.000
+        raw_price = base_price * multiplier
+        price = round(raw_price / 50_000) * 50_000
+        price = max(300_000, price)   # tối thiểu 300k
+
+        available_qty = rng.randint(1, 8)
+
         cursor.execute(
             """
             INSERT INTO RoomOffers (
@@ -232,18 +330,105 @@ def create_default_room_offers(cursor, hotel_id: int):
             (
                 hotel_id,
                 None,
-                offer["room_type"],
-                offer["description"],
-                offer["capacity"],
-                offer["price_per_night"],
-                offer["currency"],
-                offer["available_quantity"],
+                room_type,
+                description,
+                capacity,
+                price,
+                "VND",
+                available_qty,
                 None,
                 None,
-                offer["cancellation_policy"],
-                offer["amenities"]
+                policy,
+                amenities
             )
         )
+
+
+def ensure_hotel_supporting_data(cursor, hotel_id: int) -> None:
+    cursor.execute(
+        "SELECT TOP 1 1 AS ok FROM RoomOffers WHERE HotelId = ?",
+        (hotel_id,),
+    )
+    if not cursor.fetchone():
+        create_default_room_offers(cursor, hotel_id)
+
+    cursor.execute(
+        "SELECT TOP 1 1 AS ok FROM HotelServices WHERE HotelId = ?",
+        (hotel_id,),
+    )
+    if not cursor.fetchone():
+        assign_default_services(cursor, hotel_id)
+
+
+def assign_default_services(cursor, hotel_id: int) -> None:
+    """
+    Gán tất cả Services đang active vào HotelServices cho hotel mới.
+    Dùng INSERT WHERE NOT EXISTS để idempotent (an toàn khi gọi nhiều lần).
+    """
+    cursor.execute("SELECT ServiceId FROM Services WHERE IsActive = 1")
+    rows = cursor.fetchall()
+    for row in rows:
+        sid = row[0] if not hasattr(row, "ServiceId") else row.ServiceId
+        cursor.execute(
+            """
+            IF NOT EXISTS (
+                SELECT 1 FROM HotelServices WHERE HotelId = ? AND ServiceId = ?
+            )
+            INSERT INTO HotelServices (HotelId, ServiceId, IsAvailable)
+            VALUES (?, ?, 1)
+            """,
+            (hotel_id, sid, hotel_id, sid),
+        )
+
+
+def backfill_hotel_services_and_rooms() -> dict:
+    """
+    Backfill HotelServices và RoomOffers cho TẤT CẢ hotels cũ chưa có.
+    Gọi từ endpoint /admin/hotels/backfill.
+    """
+    conn = get_conn()
+    try:
+        cursor = conn.cursor()
+
+        # Hotels chưa có bất kỳ HotelService nào
+        cursor.execute(
+            """
+            SELECT h.HotelId FROM Hotels h
+            WHERE NOT EXISTS (
+                SELECT 1 FROM HotelServices hs WHERE hs.HotelId = h.HotelId
+            )
+            """
+        )
+        hotels_no_services = [r[0] for r in cursor.fetchall()]
+
+        # Hotels chưa có bất kỳ RoomOffer nào
+        cursor.execute(
+            """
+            SELECT h.HotelId FROM Hotels h
+            WHERE NOT EXISTS (
+                SELECT 1 FROM RoomOffers ro WHERE ro.HotelId = h.HotelId
+            )
+            """
+        )
+        hotels_no_rooms = [r[0] for r in cursor.fetchall()]
+
+        for hid in hotels_no_services:
+            assign_default_services(cursor, hid)
+
+        for hid in hotels_no_rooms:
+            create_default_room_offers(cursor, hid)
+
+        conn.commit()
+        return {
+            "backfilled_services": len(hotels_no_services),
+            "backfilled_rooms": len(hotels_no_rooms),
+            "message": "Backfill hoàn tất",
+        }
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 def import_hotels_by_city_to_db(
@@ -254,7 +439,8 @@ def import_hotels_by_city_to_db(
     if not GEOAPIFY_API_KEY:
         raise Exception("Thiếu GEOAPIFY_API_KEY trong file .env")
 
-    geo_data = search_hotels_from_geoapify(city=city, max_results=max_results)
+    candidate_limit = min(max(max_results * 4, max_results + 20), 200)
+    geo_data = search_hotels_from_geoapify(city=city, max_results=candidate_limit)
     hotels = geo_data["hotels"]
 
     if not hotels:
@@ -285,6 +471,9 @@ def import_hotels_by_city_to_db(
         inserted_hotel_ids = []
 
         for hotel in hotels:
+            if inserted >= max_results:
+                break
+
             hotel_name = normalize_nullable_text(hotel["hotel_name"], use_placeholder_for_null) or "Unnamed hotel"
             address = normalize_nullable_text(hotel["address"], use_placeholder_for_null)
             phone = normalize_nullable_text(hotel["phone"], use_placeholder_for_null)
@@ -297,10 +486,13 @@ def import_hotels_by_city_to_db(
                 external_hotel_code=hotel["external_hotel_code"],
                 hotel_name=hotel_name,
                 address=address,
-                city_id=city_id
+                city_id=city_id,
+                latitude=hotel.get("latitude"),
+                longitude=hotel.get("longitude"),
             )
 
             if existing_hotel_id:
+                ensure_hotel_supporting_data(cursor, existing_hotel_id)
                 skipped += 1
                 continue
 
@@ -331,7 +523,7 @@ def import_hotels_by_city_to_db(
                     address,
                     hotel["latitude"],
                     hotel["longitude"],
-                    None,
+                    hotel["star_rating"],
                     phone,
                     email,
                     thumbnail_url,
@@ -342,7 +534,7 @@ def import_hotels_by_city_to_db(
             new_row = cursor.fetchone()
             new_hotel_id = new_row.HotelId
 
-            create_default_room_offers(cursor, new_hotel_id)
+            ensure_hotel_supporting_data(cursor, new_hotel_id)
 
             inserted_hotel_ids.append(new_hotel_id)
             inserted += 1
@@ -433,12 +625,12 @@ def search_hotels_from_db(filters):
             params.append(f"%{normalized_hotel_name}%")
 
         if filters.min_rating is not None:
-            sql += " AND rv.AverageRating IS NOT NULL AND rv.AverageRating >= ? "
+            sql += " AND h.StarRating IS NOT NULL AND h.StarRating >= ? "
             params.append(filters.min_rating)
 
-        if filters.min_review_count is not None:
-            sql += " AND rv.ReviewCount IS NOT NULL AND rv.ReviewCount >= ? "
-            params.append(filters.min_review_count)
+        if filters.max_rating is not None:
+            sql += " AND h.StarRating IS NOT NULL AND h.StarRating <= ? "
+            params.append(filters.max_rating)
 
         if filters.source:
             sql += " AND LOWER(ISNULL(h.Source, '')) = LOWER(?) "
@@ -477,7 +669,7 @@ def search_hotels_from_db(filters):
         if filters.sort_by == "price_desc":
             sql += " ORDER BY CASE WHEN ro.MinPrice IS NULL THEN 1 ELSE 0 END, ro.MinPrice DESC, h.HotelId DESC "
         elif filters.sort_by == "rating_desc":
-            sql += " ORDER BY CASE WHEN rv.AverageRating IS NULL THEN 1 ELSE 0 END, rv.AverageRating DESC, rv.ReviewCount DESC, h.HotelId DESC "
+            sql += " ORDER BY CASE WHEN h.StarRating IS NULL THEN 1 ELSE 0 END, h.StarRating DESC, h.HotelId DESC "
         elif filters.sort_by == "newest":
             sql += " ORDER BY h.CreatedAt DESC, h.HotelId DESC "
         else:
@@ -516,7 +708,7 @@ def search_hotels_from_db(filters):
                 "min_price": filters.min_price,
                 "max_price": filters.max_price,
                 "min_rating": filters.min_rating,
-                "min_review_count": filters.min_review_count,
+                "max_rating": filters.max_rating,
                 "min_capacity": filters.min_capacity,
                 "min_available_quantity": filters.min_available_quantity,
                 "source": filters.source,
@@ -527,13 +719,13 @@ def search_hotels_from_db(filters):
 
     finally:
         conn.close()
+
 def delete_hotel_by_id(hotel_id: int):
     conn = get_conn()
 
     try:
         cursor = conn.cursor()
 
-        # 1. Kiểm tra hotel có tồn tại không
         cursor.execute(
             """
             SELECT TOP 1 HotelId, HotelName
@@ -547,7 +739,6 @@ def delete_hotel_by_id(hotel_id: int):
         if not hotel:
             raise HTTPException(status_code=404, detail="Không tìm thấy khách sạn")
 
-        # 2. Không cho xóa nếu đã có booking
         cursor.execute(
             """
             SELECT COUNT(*) AS TotalBookings
@@ -565,7 +756,6 @@ def delete_hotel_by_id(hotel_id: int):
                 detail="Không thể xóa khách sạn vì đã phát sinh booking"
             )
 
-        # 3. Đếm trước số bản ghi sẽ xóa để trả response đẹp hơn
         cursor.execute("SELECT COUNT(*) AS Total FROM FavoriteHotels WHERE HotelId = ?", (hotel_id,))
         favorite_count = int(cursor.fetchone().Total)
 
@@ -581,15 +771,11 @@ def delete_hotel_by_id(hotel_id: int):
         cursor.execute("SELECT COUNT(*) AS Total FROM Reviews WHERE HotelId = ?", (hotel_id,))
         review_count = int(cursor.fetchone().Total)
 
-        # 4. Xóa dữ liệu con
-        # Reviews thường không có nếu không có booking, nhưng cứ xóa để an toàn nếu có dữ liệu test thủ công
         cursor.execute("DELETE FROM FavoriteHotels WHERE HotelId = ?", (hotel_id,))
         cursor.execute("DELETE FROM HotelImages WHERE HotelId = ?", (hotel_id,))
         cursor.execute("DELETE FROM HotelServices WHERE HotelId = ?", (hotel_id,))
         cursor.execute("DELETE FROM Reviews WHERE HotelId = ?", (hotel_id,))
         cursor.execute("DELETE FROM RoomOffers WHERE HotelId = ?", (hotel_id,))
-
-        # 5. Xóa hotel
         cursor.execute("DELETE FROM Hotels WHERE HotelId = ?", (hotel_id,))
 
         conn.commit()

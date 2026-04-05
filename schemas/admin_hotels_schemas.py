@@ -16,7 +16,7 @@ class AdminHotelSearchRequest(BaseModel):
     max_price: Optional[float] = Field(None, ge=0)
 
     min_rating: Optional[float] = Field(None, ge=1, le=5)
-    min_review_count: Optional[int] = Field(None, ge=0)
+    max_rating: Optional[float] = Field(None, ge=1, le=5)
 
     min_capacity: Optional[int] = Field(None, ge=1)
     min_available_quantity: Optional[int] = Field(None, ge=0)
@@ -30,4 +30,9 @@ class AdminHotelSearchRequest(BaseModel):
         if self.min_price is not None and self.max_price is not None:
             if self.min_price > self.max_price:
                 raise ValueError("min_price không được lớn hơn max_price")
+
+        if self.min_rating is not None and self.max_rating is not None:
+            if self.min_rating > self.max_rating:
+                raise ValueError("min_rating không được lớn hơn max_rating")
+
         return self
