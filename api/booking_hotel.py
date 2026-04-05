@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from datetime import datetime
 from core.database import get_db
+from core.database import get_conn
 from core.dependencies import get_current_user
 from schemas.roomoffer_schemas import (
     CurrentUserAndRoomOfferResponse,
