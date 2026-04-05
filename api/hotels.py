@@ -243,8 +243,8 @@ def hotel_detail_page(
     request: Request,
     hotel_id: str,
     check_in: str = Query("2026-04-08"),
+    check_out: str = Query("2026-04-09"),
     adults: int = Query(2, ge=1, le=9),
-    check_out: str = Query(""),
 ):
     try:
         return templates.TemplateResponse(
