@@ -23,7 +23,7 @@ def get_conn() -> pyodbc.Connection:
     else:
         conn_str = (
             "Driver={ODBC Driver 17 for SQL Server};"
-            f"Server=LAPTOP-17TAM013\SQLEXPRESS;"
+            f"Server=DESKTOP-8872D2D;"
             f"Database=QuanLyKhachSan;"
             "Trusted_Connection=yes;"
             "TrustServerCertificate=yes;"
