@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from core.database import get_conn, query_all
+import os
 import traceback
 import threading
 from services.amadeus_service import (
@@ -11,6 +12,7 @@ from services.amadeus_service import (
     get_weather_forecast_3days,
     _upsert_hotel_images_to_db,
 )
+from services.hotel_pricing_service import get_default_price_from
 
 class FavoritePayload(BaseModel):
     user_id: int
@@ -18,6 +20,11 @@ class FavoritePayload(BaseModel):
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
+MAPBOX_TOKEN = os.getenv("MAPBOX_TOKEN", "")
+
+
+def _fallback_price_from(hotel_db_id: int, stars: float | int | None) -> float:
+    return float(get_default_price_from(int(hotel_db_id)))
 
 
 def _get_or_create_city_id(cursor, hotel: dict) -> int:
@@ -62,14 +69,18 @@ def _get_or_create_city_id(cursor, hotel: dict) -> int:
     )
     row = cursor.fetchone()
     return row[0] if row else 1
-
-def _read_hotels_from_db(city_code: str | None, city: str | None, max_results: int) -> list[dict]:
+def _read_hotels_from_db(
+    city_code: str | None,
+    city: str | None,
+    max_results: int,
+    keyword: str | None = None,
+    max_price: float | None = None,
+) -> list[dict]:
     rows = []
     try:
-        # Truy vấn chính: lấy thông tin hotel kèm rating và giá
         base_select = """
-            SELECT TOP (?)
-                h.HotelId,
+            SELECT TOP (200)
+                h.HotelId           AS hotel_db_id,
                 h.ExternalHotelCode AS hotel_id,
                 h.HotelName         AS name,
                 h.Address           AS address,
@@ -78,32 +89,46 @@ def _read_hotels_from_db(city_code: str | None, city: str | None, max_results: i
                 h.StarRating        AS stars,
                 h.ThumbnailUrl      AS thumbnail,
                 c.CityCode          AS city_code,
-                ISNULL(AVG(CAST(r.Rating AS FLOAT)), 0) AS rating_overall,
-                ISNULL(MIN(ro.PricePerNight), 0)        AS price_from
+                ISNULL((
+                    SELECT AVG(CAST(r.Rating AS FLOAT))
+                    FROM Reviews r
+                    WHERE r.HotelId = h.HotelId
+                ), 0) AS rating_overall,
+                (
+                    SELECT MIN(ro.PricePerNight)
+                    FROM RoomOffers ro
+                    WHERE ro.HotelId = h.HotelId
+                ) AS price_from
             FROM Hotels h
             JOIN Cities c ON h.CityId = c.CityId
-            LEFT JOIN Reviews r  ON r.HotelId  = h.HotelId
-            LEFT JOIN RoomOffers ro ON ro.HotelId = h.HotelId
         """
 
-        group_order = """
-            GROUP BY
-                h.HotelId, h.ExternalHotelCode, h.HotelName,
-                h.Address, h.Latitude, h.Longitude,
-                h.StarRating, h.ThumbnailUrl, c.CityCode
-            ORDER BY h.HotelId DESC
-        """
-
-        if city_code:
+        if keyword:
+            kw = keyword.strip()
+            kw_like = f"%{kw}%"
+            city_code_guess = kw.upper() if len(kw) == 3 and kw.isalpha() else None
+            sql = base_select + """
+                WHERE (
+                    LOWER(h.HotelName) LIKE LOWER(?)
+                    OR LOWER(ISNULL(h.Address, '')) LIKE LOWER(?)
+                    OR LOWER(c.CityName) LIKE LOWER(?)
+            """
+            params: list = [kw_like, kw_like, kw_like]
+            if city_code_guess:
+                sql += " OR c.CityCode = ? "
+                params.append(city_code_guess)
+            sql += ") ORDER BY h.HotelId DESC"
+            rows = query_all(sql, tuple(params))
+        elif city_code:
             rows = query_all(
-                base_select + " WHERE c.CityCode = ? " + group_order,
-                (max_results, city_code.upper())
+                base_select + " WHERE c.CityCode = ? ORDER BY h.HotelId DESC",
+                (city_code.upper(),)
             )
 
         if not rows and city:
             rows = query_all(
-                base_select + " WHERE c.CityName LIKE ? " + group_order,
-                (max_results, f"%{city}%")
+                base_select + " WHERE c.CityName LIKE ? ORDER BY h.HotelId DESC",
+                (f"%{city}%",)
             )
 
     except Exception as exc:
@@ -113,9 +138,9 @@ def _read_hotels_from_db(city_code: str | None, city: str | None, max_results: i
     if not rows:
         return []
 
-    # Lấy danh sách HotelId để query amenities một lần duy nhất (tránh N+1)
-    hotel_ids = [r["HotelId"] for r in rows]
-    amenities_map: dict[int, list[str]] = {}
+    hotel_ids = [r["hotel_db_id"] for r in rows]
+    amenities_map = {}
+
     try:
         placeholders = ",".join(["?"] * len(hotel_ids))
         amen_rows = query_all(
@@ -123,42 +148,58 @@ def _read_hotels_from_db(city_code: str | None, city: str | None, max_results: i
             SELECT hs.HotelId, s.ServiceName, s.IconEmoji
             FROM HotelServices hs
             JOIN Services s ON s.ServiceId = hs.ServiceId
-            WHERE hs.HotelId IN ({placeholders}) AND s.IsActive = 1
+            WHERE hs.HotelId IN ({placeholders})
+              AND hs.IsAvailable = 1
+              AND s.IsActive = 1
             ORDER BY hs.HotelId, s.ServiceId
             """,
             tuple(hotel_ids),
         )
         for ar in amen_rows:
             hid = ar["HotelId"]
-            label = f"{ar.get('IconEmoji', '')} {ar['ServiceName']}".strip()
+            icon = (ar.get("IconEmoji") or "").strip()
+            label = f"{icon} {ar['ServiceName']}".strip()
             amenities_map.setdefault(hid, []).append(label)
     except Exception as exc:
         print(f"[warn] amenities query failed: {exc}")
 
-    return [
-        {
-            "hotel_id":          r["hotel_id"] or str(r["HotelId"]),
-            "name":              r["name"] or "Unknown",
-            "address":           r["address"] or "",
-            "city_code":         r["city_code"],
-            "country_code":      None,
-            "latitude":          float(r["latitude"])  if r["latitude"]  is not None else None,
-            "longitude":         float(r["longitude"]) if r["longitude"] is not None else None,
-            "thumbnail":         r["thumbnail"] or "",
-            "stars":             int(round(float(r["stars"]))) if r["stars"] is not None else 3,
-            "price_from":        float(r["price_from"]),
-            "rating_overall":    round(float(r["rating_overall"]), 1),
-            # Trả về service IDs (numeric) để filter JS khớp với checkbox value từ /api/amenities
-            "amenities_preview": amenities_map.get(r["HotelId"], []),
-        }
-        for r in rows
-    ]
+    hotels = []
+    for r in rows:
+        stars = int(round(float(r["stars"]))) if r["stars"] is not None else 3
+        price_from = (
+            float(r["price_from"])
+            if r["price_from"] is not None
+            else _fallback_price_from(r["hotel_db_id"], stars)
+        )
+        hotels.append(
+            {
+                "hotel_id":          r["hotel_id"] or str(r["hotel_db_id"]),
+                "hotel_db_id":       int(r["hotel_db_id"]),
+                "name":              r["name"] or "Unknown",
+                "address":           r["address"] or "",
+                "city_code":         r["city_code"],
+                "country_code":      None,
+                "latitude":          float(r["latitude"]) if r["latitude"] is not None else None,
+                "longitude":         float(r["longitude"]) if r["longitude"] is not None else None,
+                "thumbnail":         r["thumbnail"] or "",
+                "stars":             stars,
+                "price_from":        price_from,
+                "rating_overall":    round(float(r["rating_overall"]), 1),
+                "amenities_preview": amenities_map.get(r["hotel_db_id"], []),
+            }
+        )
+    if max_price is not None:
+        hotels = [hotel for hotel in hotels if hotel["price_from"] is not None and hotel["price_from"] <= max_price]
+
+    return hotels[:max_results]
 
 # ── BUG FIX #1: Chỉ đọc từ DB, không fallback ra external API ─────────────────
 @router.get("/api/hotels")
 def api_list_hotels(
     city_code: str | None = Query(None),
     city: str | None = Query(None),
+    keyword: str | None = Query(None),
+    max_price: float | None = Query(None, ge=0),
     max_results: int = Query(12, ge=1, le=200),
 ):
     """
@@ -166,7 +207,13 @@ def api_list_hotels(
     Admin dùng /admin/hotels/import để đưa dữ liệu vào trước.
     """
     try:
-        db_hotels = _read_hotels_from_db(city_code, city, max_results)
+        db_hotels = _read_hotels_from_db(
+            city_code=city_code,
+            city=city,
+            keyword=keyword,
+            max_price=max_price,
+            max_results=max_results,
+        )
         return db_hotels   # trả về list rỗng nếu chưa có → frontend hiện "không tìm thấy"
 
     except Exception as e:
@@ -197,21 +244,18 @@ def hotel_detail_page(
     hotel_id: str,
     check_in: str = Query("2026-04-08"),
     adults: int = Query(2, ge=1, le=9),
+    check_out: str = Query(""),
 ):
     try:
-        hotel = get_hotel_detail_payload(
-            hotel_id=hotel_id,
-            check_in=check_in,
-            adults=adults,
-        )
         return templates.TemplateResponse(
             request=request,
             name="hotel_detail.html",
             context={
-                "hotel": hotel,
                 "hotel_id": hotel_id,
                 "check_in": check_in,
+                "check_out": check_out,
                 "adults": adults,
+                "mapbox_token": MAPBOX_TOKEN,
             }
         )
     except Exception as e:

@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from fastapi import HTTPException, params
 
 from core.database import get_conn
+from services.hotel_pricing_service import build_default_room_offers
 
 load_dotenv()
 
@@ -343,6 +344,93 @@ def create_default_room_offers(cursor, hotel_id: int):
         )
 
 
+def ensure_hotel_supporting_data(cursor, hotel_id: int) -> None:
+    cursor.execute(
+        "SELECT TOP 1 1 AS ok FROM RoomOffers WHERE HotelId = ?",
+        (hotel_id,),
+    )
+    if not cursor.fetchone():
+        create_default_room_offers(cursor, hotel_id)
+
+    cursor.execute(
+        "SELECT TOP 1 1 AS ok FROM HotelServices WHERE HotelId = ?",
+        (hotel_id,),
+    )
+    if not cursor.fetchone():
+        assign_default_services(cursor, hotel_id)
+
+
+def assign_default_services(cursor, hotel_id: int) -> None:
+    """
+    Gán tất cả Services đang active vào HotelServices cho hotel mới.
+    Dùng INSERT WHERE NOT EXISTS để idempotent (an toàn khi gọi nhiều lần).
+    """
+    cursor.execute("SELECT ServiceId FROM Services WHERE IsActive = 1")
+    rows = cursor.fetchall()
+    for row in rows:
+        sid = row[0] if not hasattr(row, "ServiceId") else row.ServiceId
+        cursor.execute(
+            """
+            IF NOT EXISTS (
+                SELECT 1 FROM HotelServices WHERE HotelId = ? AND ServiceId = ?
+            )
+            INSERT INTO HotelServices (HotelId, ServiceId, IsAvailable)
+            VALUES (?, ?, 1)
+            """,
+            (hotel_id, sid, hotel_id, sid),
+        )
+
+
+def backfill_hotel_services_and_rooms() -> dict:
+    """
+    Backfill HotelServices và RoomOffers cho TẤT CẢ hotels cũ chưa có.
+    Gọi từ endpoint /admin/hotels/backfill.
+    """
+    conn = get_conn()
+    try:
+        cursor = conn.cursor()
+
+        # Hotels chưa có bất kỳ HotelService nào
+        cursor.execute(
+            """
+            SELECT h.HotelId FROM Hotels h
+            WHERE NOT EXISTS (
+                SELECT 1 FROM HotelServices hs WHERE hs.HotelId = h.HotelId
+            )
+            """
+        )
+        hotels_no_services = [r[0] for r in cursor.fetchall()]
+
+        # Hotels chưa có bất kỳ RoomOffer nào
+        cursor.execute(
+            """
+            SELECT h.HotelId FROM Hotels h
+            WHERE NOT EXISTS (
+                SELECT 1 FROM RoomOffers ro WHERE ro.HotelId = h.HotelId
+            )
+            """
+        )
+        hotels_no_rooms = [r[0] for r in cursor.fetchall()]
+
+        for hid in hotels_no_services:
+            assign_default_services(cursor, hid)
+
+        for hid in hotels_no_rooms:
+            create_default_room_offers(cursor, hid)
+
+        conn.commit()
+        return {
+            "backfilled_services": len(hotels_no_services),
+            "backfilled_rooms": len(hotels_no_rooms),
+            "message": "Backfill hoàn tất",
+        }
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
 def import_hotels_by_city_to_db(
     city: str,
     max_results: int = 10,
@@ -351,7 +439,8 @@ def import_hotels_by_city_to_db(
     if not GEOAPIFY_API_KEY:
         raise Exception("Thiếu GEOAPIFY_API_KEY trong file .env")
 
-    geo_data = search_hotels_from_geoapify(city=city, max_results=max_results)
+    candidate_limit = min(max(max_results * 4, max_results + 20), 200)
+    geo_data = search_hotels_from_geoapify(city=city, max_results=candidate_limit)
     hotels = geo_data["hotels"]
 
     if not hotels:
@@ -382,6 +471,9 @@ def import_hotels_by_city_to_db(
         inserted_hotel_ids = []
 
         for hotel in hotels:
+            if inserted >= max_results:
+                break
+
             hotel_name = normalize_nullable_text(hotel["hotel_name"], use_placeholder_for_null) or "Unnamed hotel"
             address = normalize_nullable_text(hotel["address"], use_placeholder_for_null)
             phone = normalize_nullable_text(hotel["phone"], use_placeholder_for_null)
@@ -400,6 +492,7 @@ def import_hotels_by_city_to_db(
             )
 
             if existing_hotel_id:
+                ensure_hotel_supporting_data(cursor, existing_hotel_id)
                 skipped += 1
                 continue
 
@@ -441,7 +534,7 @@ def import_hotels_by_city_to_db(
             new_row = cursor.fetchone()
             new_hotel_id = new_row.HotelId
 
-            create_default_room_offers(cursor, new_hotel_id)
+            ensure_hotel_supporting_data(cursor, new_hotel_id)
 
             inserted_hotel_ids.append(new_hotel_id)
             inserted += 1

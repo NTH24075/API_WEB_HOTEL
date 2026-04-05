@@ -9,6 +9,7 @@ from services.admin_hotel_service import (
     delete_hotel_by_id,
     import_hotels_by_city_to_db,
     search_hotels_from_db,
+    backfill_hotel_services_and_rooms,
 )
 
 router = APIRouter(prefix="/admin/hotels", tags=["Admin Hotels"])
@@ -26,6 +27,20 @@ def import_hotels(data: ImportHotelsByCityRequest, admin=Depends(require_admin))
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi import khách sạn: {str(e)}")
+
+
+@router.post("/backfill")
+def backfill_hotels(admin=Depends(require_admin)):
+    """
+    Backfill HotelServices và RoomOffers cho tất cả hotels cũ chưa có.
+    Chạy 1 lần sau khi deploy để fix dữ liệu cũ.
+    """
+    try:
+        return backfill_hotel_services_and_rooms()
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Lỗi backfill: {str(e)}")
 
 
 @router.post("/search")
@@ -46,8 +61,3 @@ def delete_hotel(hotel_id: int, admin=Depends(require_admin)):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi xóa khách sạn: {str(e)}")
-
-
-
-
-        
