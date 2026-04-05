@@ -114,6 +114,7 @@ def hotel_detail_page(
     hotel_id: str,
     check_in: str = "2026-04-08",
     adults: int = 2,
+    check_out: str = "",
 ):
     return templates.TemplateResponse(
         request=request,
@@ -121,6 +122,7 @@ def hotel_detail_page(
         context={
             "hotel_id": hotel_id,
             "check_in": check_in,
+            "check_out": check_out,
             "adults": adults,
             "mapbox_token": MAPBOX_TOKEN,
         },

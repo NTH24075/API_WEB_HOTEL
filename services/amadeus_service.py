@@ -59,7 +59,7 @@ def _unsplash_url(photo_id: str, w: int = 900, h: int = 600) -> str:
     """Tạo URL Unsplash CDN trực tiếp theo photo_id — không cần API key."""
     return (
         f"https://images.unsplash.com/photo-{photo_id}"
-        f"?q=80&w={w}&h={h}&auto=format&fit=crop"
+        f"?q=80&w={w}&h={h}&auto=format&fit=crop&ixlib=rb-4.0.3"
     )
 
 

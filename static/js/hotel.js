@@ -204,25 +204,28 @@ async function loadAmenitiesFromDB() {
   try {
     const res = await fetch("/api/amenities");
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const list = await res.json();
+    const raw = await res.json();
+    // API trả về { id, name, icon, description } — chuẩn hoá về { key, label, icon }
+    const list = raw.map(a => ({
+      key:   String(a.id),          // dùng id làm key để filter
+      label: a.name  || a.label || "",
+      icon:  a.icon  || "",
+    }));
     _amenityMap = {};
-    list.forEach(a => {
-      _amenityMap[a.key] = { label: a.label, icon: a.icon };
-    });
+    list.forEach(a => { _amenityMap[a.key] = { label: a.label, icon: a.icon }; });
     renderAmenityFilter(list);
     return list;
   } catch (e) {
     console.warn("Could not load amenities from DB, using fallback:", e.message);
-    // Fallback hardcoded
     const fallback = [
-      { key: "wifi",       label: "Wi-Fi miễn phí", icon: "📶" },
-      { key: "pool",       label: "Hồ bơi",         icon: "🏊" },
-      { key: "ac",         label: "Điều hòa",        icon: "❄️" },
-      { key: "parking",    label: "Bãi đỗ xe",       icon: "🅿️" },
-      { key: "gym",        label: "Phòng gym",        icon: "🏋️" },
-      { key: "spa",        label: "Spa",              icon: "💆" },
-      { key: "restaurant", label: "Nhà hàng",         icon: "🍽" },
-      { key: "pets",       label: "Thú cưng",         icon: "🐾" },
+      { key: "1", label: "Wi-Fi",      icon: "📶" },
+      { key: "2", label: "Hồ bơi",     icon: "🏊" },
+      { key: "3", label: "Điều hòa",   icon: "❄️" },
+      { key: "4", label: "Bãi đỗ xe",  icon: "🅿️" },
+      { key: "5", label: "Phòng gym",  icon: "🏋️" },
+      { key: "6", label: "Spa",        icon: "💆" },
+      { key: "7", label: "Nhà hàng",   icon: "🍽" },
+      { key: "8", label: "Thú cưng",   icon: "🐾" },
     ];
     fallback.forEach(a => { _amenityMap[a.key] = { label: a.label, icon: a.icon }; });
     renderAmenityFilter(fallback);
@@ -239,7 +242,6 @@ function renderAmenityFilter(list) {
       ${a.icon} ${a.label}
     </label>
   `).join("");
-  // Re-attach listeners after rendering
   initAmenityFilter();
 }
 
@@ -248,7 +250,7 @@ function renderAmenityFilter(list) {
 function enrichHotels(hotels) {
   return hotels.map((h) => ({
     ...h,
-    _stars: h.stars ?? 3,
+    _stars: Math.round(Number(h.stars) || 3),   // luôn là số nguyên 1-5
     _price: h.price_from ?? 0,
     _amenities: h.amenities_preview ?? [],
   }));
@@ -327,14 +329,36 @@ function applyFilters(hotels) {
   const sort = document.getElementById("sortSelect")?.value ?? "default";
 
   let list = hotels.filter(h => {
+    // Filter giá
     if (h._price > 0 && h._price > budgetMax) return false;
-    if (starChecks.length > 0 && !starChecks.includes(String(h._stars))) return false;
-    if (amenChecks.length > 0) {
-      if (!amenChecks.every(a => (h._amenities || []).some(ha =>
-        (typeof ha === "string" ? ha.toLowerCase() : "").includes(a.toLowerCase()) ||
-        ha === a
-      ))) return false;
+
+    // Filter sao — checkbox "1" = 1-2 sao, "3" = 3 sao, "4" = 4 sao, "5" = 5 sao
+    if (starChecks.length > 0) {
+      const s = h._stars;
+      const pass = starChecks.some(v => {
+        if (v === "1") return s <= 2;       // 1-2 sao
+        if (v === "3") return s === 3;
+        if (v === "4") return s === 4;
+        if (v === "5") return s === 5;
+        return String(s) === v;
+      });
+      if (!pass) return false;
     }
+
+    // Filter amenity — so sánh theo tên service (label text) thay vì ID số
+    // amenities_preview từ DB giờ là mảng string kiểu "🏊 Hồ bơi"
+    // _amenityMap[key].label là "Hồ bơi"
+    if (amenChecks.length > 0) {
+      if (!(h._amenities || []).length) return false; // hotel chưa có services thì không pass filter
+      const pass = amenChecks.every(key => {
+        const label = (_amenityMap[key]?.label || "").toLowerCase();
+        return (h._amenities || []).some(a =>
+          typeof a === "string" && a.toLowerCase().includes(label) && label !== ""
+        );
+      });
+      if (!pass) return false;
+    }
+
     return true;
   });
 
@@ -352,7 +376,7 @@ function applyFilters(hotels) {
 function createHotelCard(hotel, checkIn, checkOut, adults, idx) {
   const delay = Math.min(idx * 60, 600);
   const thumb = hotel.thumbnail
-    ? `<img src="${hotel.thumbnail}" alt="${hotel.name}" loading="lazy"/>`
+    ? `<img src="${hotel.thumbnail}" alt="${hotel.name}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\"image-placeholder\\">🏨</div>'"/>`
     : `<div class="image-placeholder">🏨</div>`;
 
   const starsHTML = "★".repeat(hotel._stars) + `<span style="color:#d1d5db">${"★".repeat(5 - hotel._stars)}</span>`;
@@ -478,7 +502,13 @@ async function loadHotels() {
 
   try {
     // Không giới hạn max_results — lấy tất cả, phân trang phía client
-    const res = await fetch(`/api/hotels?city_code=${encodeURIComponent(raw)}&max_results=50`);
+    const keyword = raw.trim();
+    const isCityCode = /^[A-Za-z]{3}$/.test(keyword);
+    const url = isCityCode
+      ? `/api/hotels?city_code=${encodeURIComponent(keyword.toUpperCase())}&max_results=50`
+      : `/api/hotels?city=${encodeURIComponent(keyword)}&max_results=50`;
+
+    const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const raw_hotels = await res.json();
 
@@ -554,10 +584,10 @@ function renderGallery(images) {
   }
   const [main, ...rest] = images;
   gallery.innerHTML = `
-    <div class="gallery-main"><img src="${main.url}" alt="${main.caption || "Hotel"}"/></div>
+    <div class="gallery-main"><img src="${main.url}" alt="${main.caption || "Hotel"}" onerror="this.src='';this.parentElement.innerHTML='<div class=\\"image-placeholder\\" style=\\"height:300px\\">🏨</div>'"/></div>
     <div class="gallery-side">
       ${rest.slice(0, 4).map(img =>
-        `<div class="gallery-thumb"><img src="${img.url}" alt="${img.caption || "Hotel"}"/></div>`
+        `<div class="gallery-thumb"><img src="${img.url}" alt="${img.caption || "Hotel"}" onerror="this.parentElement.innerHTML='<div class=\\"image-placeholder\\">🏨</div>'"/></div>`
       ).join("")}
     </div>`;
 }
@@ -974,7 +1004,7 @@ async function addFavorite(hotelId) {
         }
 
         alert(data.message);
-        console.log("✅ Đã thêm yêu thích:", data);
+        console.log(" Đã thêm yêu thích:", data);
 
     } catch (error) {
         console.error("Lỗi khi thêm yêu thích:", error);

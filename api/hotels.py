@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Query, HTTPException, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from core.database import get_conn, query_all
 import traceback
@@ -15,6 +17,7 @@ class FavoritePayload(BaseModel):
     hotel_id: str
 
 router = APIRouter()
+templates = Jinja2Templates(directory="templates")
 
 
 def _get_or_create_city_id(cursor, hotel: dict) -> int:
@@ -22,13 +25,11 @@ def _get_or_create_city_id(cursor, hotel: dict) -> int:
     Tìm CityId phù hợp từ tọa độ hotel, hoặc tạo mới nếu chưa có.
     Ưu tiên lookup theo country_code + tên city từ address.
     """
-    # Thử tìm theo tên thành phố trong address (nếu có)
     address = hotel.get("address") or ""
     city_name = None
-    # Geoapify thường trả về "..., Thành phố, Quốc gia"
     parts = [p.strip() for p in address.split(",") if p.strip()]
     if len(parts) >= 2:
-        city_name = parts[-2]  # phần thứ 2 từ cuối thường là thành phố
+        city_name = parts[-2]
 
     if city_name:
         cursor.execute(
@@ -39,7 +40,6 @@ def _get_or_create_city_id(cursor, hotel: dict) -> int:
         if row:
             return row[0]
 
-    # Tìm theo tọa độ gần nhất (trong vòng ~1 độ)
     lat = hotel.get("latitude")
     lon = hotel.get("longitude")
     if lat is not None and lon is not None:
@@ -52,7 +52,6 @@ def _get_or_create_city_id(cursor, hotel: dict) -> int:
         if row:
             return row[0]
 
-    # Không tìm thấy → tạo mới City từ thông tin có được
     country_code = hotel.get("country_code") or "VN"
     insert_city_name = city_name or "Unknown City"
     cursor.execute(
@@ -64,73 +63,112 @@ def _get_or_create_city_id(cursor, hotel: dict) -> int:
     row = cursor.fetchone()
     return row[0] if row else 1
 
-
-def _sync_hotel_to_db(hotel: dict) -> None:
-    """
-    Upsert một hotel (từ Geoapify) vào bảng Hotels + HotelImages.
-    Chạy trong background thread để không làm chậm response.
-    """
+def _read_hotels_from_db(city_code: str | None, city: str | None, max_results: int) -> list[dict]:
+    rows = []
     try:
-        from Db import query_one, get_connection
+        # Truy vấn chính: lấy thông tin hotel kèm rating và giá
+        base_select = """
+            SELECT TOP (?)
+                h.HotelId,
+                h.ExternalHotelCode AS hotel_id,
+                h.HotelName         AS name,
+                h.Address           AS address,
+                h.Latitude          AS latitude,
+                h.Longitude         AS longitude,
+                h.StarRating        AS stars,
+                h.ThumbnailUrl      AS thumbnail,
+                c.CityCode          AS city_code,
+                ISNULL(AVG(CAST(r.Rating AS FLOAT)), 0) AS rating_overall,
+                ISNULL(MIN(ro.PricePerNight), 0)        AS price_from
+            FROM Hotels h
+            JOIN Cities c ON h.CityId = c.CityId
+            LEFT JOIN Reviews r  ON r.HotelId  = h.HotelId
+            LEFT JOIN RoomOffers ro ON ro.HotelId = h.HotelId
+        """
 
-        hotel_id = hotel.get("hotel_id") or ""
-        if not hotel_id:
-            return
+        group_order = """
+            GROUP BY
+                h.HotelId, h.ExternalHotelCode, h.HotelName,
+                h.Address, h.Latitude, h.Longitude,
+                h.StarRating, h.ThumbnailUrl, c.CityCode
+            ORDER BY h.HotelId DESC
+        """
 
-        # Upsert Hotels
-        existing = query_one(
-            "SELECT HotelId FROM Hotels WHERE ExternalHotelCode = ?",
-            (hotel_id,),
-        )
-        if not existing:
-            with get_connection() as conn:
-                cursor = conn.cursor()
-                # Lookup hoặc tạo City trước để tránh FK violation
-                city_id = _get_or_create_city_id(cursor, hotel)
-                cursor.execute(
-                    "INSERT INTO Hotels "
-                    "(ExternalHotelCode, CityId, HotelName, Address, Latitude, Longitude, "
-                    " StarRating, ThumbnailUrl, Source) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'geoapify')",
-                    (
-                        hotel_id,
-                        city_id,
-                        hotel.get("name") or "Unknown",
-                        hotel.get("address") or "",
-                        hotel.get("latitude"),
-                        hotel.get("longitude"),
-                        hotel.get("stars"),
-                        hotel.get("thumbnail") or "",
-                    ),
-                )
-                conn.commit()
+        if city_code:
+            rows = query_all(
+                base_select + " WHERE c.CityCode = ? " + group_order,
+                (max_results, city_code.upper())
+            )
 
-        # Upsert HotelImages (thumbnail + gallery)
-        _upsert_hotel_images_to_db(hotel_id)
+        if not rows and city:
+            rows = query_all(
+                base_select + " WHERE c.CityName LIKE ? " + group_order,
+                (max_results, f"%{city}%")
+            )
 
     except Exception as exc:
-        print(f"[warn] _sync_hotel_to_db: {exc}")
+        print(f"[warn] _read_hotels_from_db: {exc}")
+        return []
 
+    if not rows:
+        return []
 
+    # Lấy danh sách HotelId để query amenities một lần duy nhất (tránh N+1)
+    hotel_ids = [r["HotelId"] for r in rows]
+    amenities_map: dict[int, list[str]] = {}
+    try:
+        placeholders = ",".join(["?"] * len(hotel_ids))
+        amen_rows = query_all(
+            f"""
+            SELECT hs.HotelId, s.ServiceName, s.IconEmoji
+            FROM HotelServices hs
+            JOIN Services s ON s.ServiceId = hs.ServiceId
+            WHERE hs.HotelId IN ({placeholders}) AND s.IsActive = 1
+            ORDER BY hs.HotelId, s.ServiceId
+            """,
+            tuple(hotel_ids),
+        )
+        for ar in amen_rows:
+            hid = ar["HotelId"]
+            label = f"{ar.get('IconEmoji', '')} {ar['ServiceName']}".strip()
+            amenities_map.setdefault(hid, []).append(label)
+    except Exception as exc:
+        print(f"[warn] amenities query failed: {exc}")
+
+    return [
+        {
+            "hotel_id":          r["hotel_id"] or str(r["HotelId"]),
+            "name":              r["name"] or "Unknown",
+            "address":           r["address"] or "",
+            "city_code":         r["city_code"],
+            "country_code":      None,
+            "latitude":          float(r["latitude"])  if r["latitude"]  is not None else None,
+            "longitude":         float(r["longitude"]) if r["longitude"] is not None else None,
+            "thumbnail":         r["thumbnail"] or "",
+            "stars":             int(round(float(r["stars"]))) if r["stars"] is not None else 3,
+            "price_from":        float(r["price_from"]),
+            "rating_overall":    round(float(r["rating_overall"]), 1),
+            # Trả về service IDs (numeric) để filter JS khớp với checkbox value từ /api/amenities
+            "amenities_preview": amenities_map.get(r["HotelId"], []),
+        }
+        for r in rows
+    ]
+
+# ── BUG FIX #1: Chỉ đọc từ DB, không fallback ra external API ─────────────────
 @router.get("/api/hotels")
 def api_list_hotels(
     city_code: str | None = Query(None),
     city: str | None = Query(None),
     max_results: int = Query(12, ge=1, le=200),
 ):
+    """
+    Luôn đọc từ DB nội bộ.
+    Admin dùng /admin/hotels/import để đưa dữ liệu vào trước.
+    """
     try:
-        hotels = search_hotels_by_city(
-            city_code=city_code,
-            city=city,
-            max_results=max_results,
-        )
-        # Sync hotels vào DB trong background — không block response
-        def _bg():
-            for h in hotels:
-                _sync_hotel_to_db(h)
-        threading.Thread(target=_bg, daemon=True).start()
+        db_hotels = _read_hotels_from_db(city_code, city, max_results)
+        return db_hotels   # trả về list rỗng nếu chưa có → frontend hiện "không tìm thấy"
 
-        return hotels
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
@@ -153,6 +191,32 @@ def api_hotel_detail(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/hotels/{hotel_id}", response_class=HTMLResponse)
+def hotel_detail_page(
+    request: Request,
+    hotel_id: str,
+    check_in: str = Query("2026-04-08"),
+    adults: int = Query(2, ge=1, le=9),
+):
+    try:
+        hotel = get_hotel_detail_payload(
+            hotel_id=hotel_id,
+            check_in=check_in,
+            adults=adults,
+        )
+        return templates.TemplateResponse(
+            request=request,
+            name="hotel_detail.html",
+            context={
+                "hotel": hotel,
+                "hotel_id": hotel_id,
+                "check_in": check_in,
+                "adults": adults,
+            }
+        )
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/api/favorites")
@@ -165,14 +229,6 @@ def add_favorite(payload: FavoritePayload):
         user_id = payload.user_id
         hotel_id = payload.hotel_id
 
-        # kiểm tra user tồn tại
-        # curs.execute("SELECT UserId FROM Users WHERE UserId = ?", (user_id,))
-        # user = curs.fetchone()
-
-        # if not user:
-        #     raise HTTPException(status_code=404, detail="Người dùng không tồn tại")
-
-        # kiểm tra đã thích chưa
         curs.execute(
             "SELECT FavoriteId FROM FavoriteHotels WHERE UserId = ? AND HotelId = ?",
             (user_id, hotel_id)
@@ -182,7 +238,6 @@ def add_favorite(payload: FavoritePayload):
         if existed:
             raise HTTPException(status_code=400, detail="Khách sạn đã có trong yêu thích")
 
-        # thêm favorite
         curs.execute(
             "INSERT INTO FavoriteHotels (UserId, HotelId) VALUES (?, ?)",
             (user_id, hotel_id)
