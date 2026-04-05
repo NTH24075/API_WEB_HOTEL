@@ -26,7 +26,7 @@
             <p>Khám phá hàng nghìn lựa chọn tại mọi điểm đến trên thế giới</p>
         </div>
 
-        <div class="search-panel">
+        <form class="search-panel" id="searchForm">
             <div class="field field-city">
                 <label>🏙 Điểm đến</label>
                 <input id="cityCode" value="BKK" placeholder="Ví dụ: BKK, HAN, SGN, PAR…" />
@@ -47,11 +47,11 @@
                 <label>🛏 Phòng</label>
                 <input id="rooms" type="number" min="1" max="9" value="1" />
             </div>
-            <button id="searchBtn" class="search-btn">
+            <button id="searchBtn" class="search-btn" type="submit">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
                 Tìm kiếm
             </button>
-        </div>
+        </form>
     </div>
 </section>
 

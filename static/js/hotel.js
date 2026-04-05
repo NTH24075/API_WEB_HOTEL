@@ -377,7 +377,8 @@ function applyFilters(hotels) {
   let list = hotels.filter(h => {
 
     // Filter giá — null price (chưa có phòng) luôn pass qua, không lọc
-
+    const { budgetMax } = getFilters();
+    if (h._price != null && h._price > budgetMax) return false;
     // Filter sao — checkbox "1" = 1-2 sao, "3" = 3 sao, "4" = 4 sao, "5" = 5 sao
     if (starChecks.length > 0) {
       const s = h._stars;
@@ -500,6 +501,17 @@ function createHotelCard(hotel, checkIn, checkOut, adults, idx) {
 let allHotels = [];
 let currentSearchKeyword = "";
 
+function syncHotelListUrl({ keyword, checkIn, checkOut, adults, rooms }) {
+  const params = new URLSearchParams();
+  if (keyword) params.set("city", keyword);
+  if (checkIn) params.set("check_in", checkIn);
+  if (checkOut) params.set("check_out", checkOut);
+  if (adults) params.set("adults", adults);
+  if (rooms) params.set("rooms", rooms);
+  const qs = params.toString();
+  window.history.replaceState({}, "", qs ? `/hotels?${qs}` : "/hotels");
+}
+
 function syncSidebarWeather(checkIn) {
   if (filteredCache.length) {
     return loadWeatherSidebarForHotel(filteredCache[0], checkIn, currentSearchKeyword);
@@ -561,14 +573,16 @@ async function loadHotels() {
   const checkIn   = document.getElementById("checkInDate")?.value || "";
   const checkOut  = document.getElementById("checkOutDate")?.value || "";
   const adults    = document.getElementById("adults")?.value || "2";
+  const rooms     = document.getElementById("rooms")?.value || "1";
   const budgetMax = Number(document.getElementById("budgetRange")?.value ?? 5000000);
   const resultBox = document.getElementById("hotelResults");
   const topbar    = document.getElementById("resultsTopbar");
 
   if (!raw) { alert("Vui lòng nhập tên khách sạn hoặc điểm đến."); return; }
 
-  const cityName = raw;
+  const cityName = resolveCityName(raw);
   currentSearchKeyword = raw;
+  syncHotelListUrl({ keyword: raw, checkIn, checkOut, adults, rooms });
   resultBox.innerHTML = `<div class="loading-card"><div class="spinner"></div><span>Đang tìm khách sạn cho <strong>${cityName}</strong>…</span></div>`;
   topbar.style.display = "none";
 
@@ -580,7 +594,7 @@ async function loadHotels() {
   loadWeatherSidebar(raw, checkIn);
 
   try {
-    const url = `/api/hotels?keyword=${encodeURIComponent(raw)}&max_price=${encodeURIComponent(budgetMax)}&max_results=50`;
+    const url = `/api/hotels?keyword=${encodeURIComponent(cityName)}&max_price=${encodeURIComponent(budgetMax)}&max_results=50`;
 
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -617,8 +631,8 @@ function initBudgetRange() {
     updateBudgetLabel(Number(range.value));
   });
   range.addEventListener("change", () => {
-    if (currentSearchKeyword) loadHotels();
-  });
+  if (allHotels.length) renderResults();
+});
 }
 
 // ─── Star filter ──────────────────────────────────────────────────────────────
@@ -1071,9 +1085,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Load amenities from DB first (async), then attach listeners
     await loadAmenitiesFromDB();
 
-    document.getElementById("searchBtn").addEventListener("click", loadHotels);
-    document.getElementById("cityCode").addEventListener("keydown", e => {
-      if (e.key === "Enter") loadHotels();
+    document.getElementById("searchForm")?.addEventListener("submit", (e) => {
+      e.preventDefault();
+      loadHotels();
     });
     document.getElementById("applyFilter")?.addEventListener("click", () => {
       if (currentSearchKeyword) loadHotels();
@@ -1092,6 +1106,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const checkIn     = params.get("check_in");
     const checkOut    = params.get("check_out");
     const adults      = params.get("adults");
+    const rooms       = params.get("rooms");
 
     if (cityParam) {
       const cityInput = document.getElementById("cityCode");
@@ -1108,6 +1123,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (adults) {
       const adInput = document.getElementById("adults");
       if (adInput) adInput.value = adults;
+    }
+    if (rooms) {
+      const roomInput = document.getElementById("rooms");
+      if (roomInput) roomInput.value = rooms;
     }
 
     // Auto-search if city param present (after awaiting amenities)
