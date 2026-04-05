@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 
 
 class BookingFilterRequest(BaseModel):
@@ -8,6 +8,12 @@ class BookingFilterRequest(BaseModel):
     booking_status: Optional[str] = None
     payment_status: Optional[str] = None
     keyword: Optional[str] = None
+
+
+class ReceptionistHotelInfoResponse(BaseModel):
+    hotel_id: int
+    hotel_name: str
+    address: Optional[str] = None
 
 
 class BookingResponse(BaseModel):
@@ -23,6 +29,13 @@ class BookingResponse(BaseModel):
     hotel_name: str
 
 
+class BookingListResponse(BaseModel):
+    hotel: ReceptionistHotelInfoResponse
+    message: str
+    total: int
+    data: List[BookingResponse]
+
+
 class BookingDetailResponse(BaseModel):
     booking_id: int
     booking_code: str
@@ -35,3 +48,19 @@ class BookingDetailResponse(BaseModel):
     email: str
     phone: Optional[str]
     hotel_name: str
+
+
+class PaymentResponse(BaseModel):
+    payment_id: int
+    amount: float
+    payment_status: str
+    payment_method: Optional[str] = None
+    paid_at: Optional[str] = None
+    booking_code: str
+    customer_name: str
+
+
+class PaymentListResponse(BaseModel):
+    hotel: ReceptionistHotelInfoResponse
+    message: str
+    data: List[PaymentResponse]

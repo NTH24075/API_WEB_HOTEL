@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Receptionist Booking & Payment Dashboard</title>
+  <link rel="stylesheet" href="/static/css/receptionist/receptionist_booking_payment.css" />
+</head>
+<body>
+  <!-- =========================
+       TOPBAR
+  ========================== -->
+  <header class="admin-topbar">
+    <div>
+      <p class="topbar-kicker">StayBook Receptionist</p>
+      <h1>Quản lí booking và payment</h1>
+    </div>
+
+    <div class="topbar-actions">
+      <span id="receptionistNameBadge" class="admin-badge">Receptionist</span>
+      <button id="logoutBtn" class="ghost-btn" type="button">Đăng xuất</button>
+    </div>
+  </header>
+
+  <!-- =========================
+     TASKBAR
+========================== -->
+<nav class="page-taskbar">
+  <a href="/receptionist/booking-payment-page" class="taskbar-link active">
+    Booking & Payment
+  </a>
+  <a href="/receptionist/hotel-services-page" class="taskbar-link">
+    Hotel Services
+  </a>
+</nav>
+
+  <!-- =========================
+       MAIN LAYOUT
+  ========================== -->
+  <main class="dashboard-wrap booking-layout">
+    <!-- =========================
+         CỘT TRÁI: FILTER BOOKING
+    ========================== -->
+    <section class="left-column card">
+      <div class="section-head">
+        <h2>Lọc booking</h2>
+        <p>Tìm booking theo thời gian, trạng thái và thông tin khách hàng.</p>
+      </div>
+
+      <form id="bookingFilterForm" class="stack-form">
+        <div class="field-group">
+          <label for="fromDateInput">Từ ngày check-in</label>
+          <input id="fromDateInput" type="date" />
+        </div>
+
+        <div class="field-group">
+          <label for="toDateInput">Đến ngày check-out</label>
+          <input id="toDateInput" type="date" />
+        </div>
+
+        <div id="dateFilterError" class="filter-error hidden">
+          Nếu nhập cả 2 ngày, ngày check-out phải lớn hơn ngày check-in.
+        </div>
+
+        <div class="field-group">
+          <label for="bookingStatusInput">Trạng thái booking</label>
+          <select id="bookingStatusInput">
+            <option value="">Tất cả</option>
+            <option value="Pending">Pending</option>
+            <option value="Confirmed">Confirmed</option>
+            <option value="Cancelled">Cancelled</option>
+          </select>
+        </div>
+
+        <div class="field-group">
+          <label for="paymentStatusInput">Trạng thái payment</label>
+          <select id="paymentStatusInput">
+            <option value="">Tất cả</option>
+            <option value="Paid">Paid</option>
+            <option value="Unpaid">Unpaid</option>
+          </select>
+        </div>
+
+        <div class="field-group">
+          <label for="bookingKeywordInput">Từ khóa</label>
+          <input
+            id="bookingKeywordInput"
+            type="text"
+            placeholder="Tên khách, email, mã booking"
+          />
+        </div>
+
+        <button type="submit" class="primary-btn full-btn">Lọc booking</button>
+        <button type="button" id="resetBookingFilterBtn" class="ghost-btn full-btn">Reset bộ lọc</button>
+      </form>
+
+      <div class="mini-divider"></div>
+
+      <div class="section-head small-head">
+        <h3>Ghi chú</h3>
+      </div>
+      <div class="info-box">
+        - Receptionist chỉ được quản lí booking và payment của khách sạn đã được gán.<br />
+        - Có thể xem chi tiết booking, check-in, check-out và hủy booking nếu backend hỗ trợ.
+      </div>
+    </section>
+
+    <!-- =========================
+         CỘT PHẢI: BOOKING + PAYMENT
+    ========================== -->
+    <section class="right-column card rounded-panel">
+      <div class="section-head">
+        <h2>Danh sách booking và payment</h2>
+        <p>Theo dõi toàn bộ booking và payment thuộc khách sạn bạn đang quản lí.</p>
+      </div>
+
+      <!-- THÔNG TIN KHÁCH SẠN -->
+      <div class="hotel-info-box">
+        <div class="hotel-info-item">
+          <span>Tên khách sạn</span>
+          <strong id="hotelNameText">Đang tải...</strong>
+        </div>
+
+        <div class="hotel-info-item wide">
+          <span>Địa chỉ khách sạn</span>
+          <strong id="hotelAddressText">Đang tải...</strong>
+        </div>
+      </div>
+
+      <!-- TAB -->
+      <div class="panel-tabs">
+        <button id="showBookingTabBtn" type="button" class="tab-btn active">Booking</button>
+        <button id="showPaymentTabBtn" type="button" class="tab-btn">Payment</button>
+      </div>
+
+      <!-- =========================
+           BOOKING TAB
+      ========================== -->
+      <div id="bookingTab" class="tab-panel">
+        <div class="result-head">
+          <h3>Danh sách booking</h3>
+          <span id="bookingResultCount" class="result-count">0 kết quả</span>
+        </div>
+
+        <div class="request-table-wrap">
+          <table class="request-table">
+            <thead>
+              <tr>
+                <th>Booking ID</th>
+                <th>Mã booking</th>
+                <th>Khách hàng</th>
+                <th>Check-in</th>
+                <th>Check-out</th>
+                <th>Tổng tiền</th>
+                <th>Booking</th>
+                <th>Payment</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="bookingTableBody">
+              <tr>
+                <td colspan="9" class="table-empty">Đang tải dữ liệu...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div id="bookingPaginationWrap" class="pagination-wrap hidden">
+          <button id="bookingPrevPageBtn" class="ghost-btn" type="button">← Trang trước</button>
+          <div id="bookingPaginationNumbers" class="pagination-numbers"></div>
+          <button id="bookingNextPageBtn" class="ghost-btn" type="button">Trang sau →</button>
+        </div>
+      </div>
+
+      <!-- =========================
+           PAYMENT TAB
+      ========================== -->
+      <div id="paymentTab" class="tab-panel hidden">
+        <form id="paymentFilterForm" class="search-grid compact-grid payment-filter-grid">
+        <div class="field-group">
+          <label for="paymentKeywordInput">Tìm theo khách / booking code</label>
+          <input id="paymentKeywordInput" type="text" placeholder="Ví dụ: Nguyễn Văn A" />
+        </div>
+
+        <div class="field-group">
+          <label for="paymentStatusFilterInput">Trạng thái payment</label>
+          <select id="paymentStatusFilterInput">
+            <option value="">Tất cả</option>
+            <option value="Paid">Paid</option>
+            <option value="Unpaid">Unpaid</option>
+          </select>
+        </div>
+
+        <div class="search-actions">
+          <button type="submit" class="primary-btn">Lọc payment</button>
+          <button type="button" id="resetPaymentFilterBtn" class="ghost-btn">Reset</button>
+        </div>
+      </form>
+
+        <div class="result-head">
+          <h3>Danh sách payment</h3>
+          <span id="paymentResultCount" class="result-count">0 kết quả</span>
+        </div>
+
+        <div class="request-table-wrap">
+          <table class="request-table">
+            <thead>
+              <tr>
+                <th>Payment ID</th>
+                <th>Mã booking</th>
+                <th>Khách hàng</th>
+                <th>Số tiền</th>
+                <th>Phương thức</th>
+                <th>Trạng thái</th>
+                <th>Paid At</th>
+              </tr>
+            </thead>
+            <tbody id="paymentTableBody">
+              <tr>
+                <td colspan="7" class="table-empty">Đang tải dữ liệu...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div id="paymentPaginationWrap" class="pagination-wrap hidden">
+          <button id="paymentPrevPageBtn" class="ghost-btn" type="button">← Trang trước</button>
+          <div id="paymentPaginationNumbers" class="pagination-numbers"></div>
+          <button id="paymentNextPageBtn" class="ghost-btn" type="button">Trang sau →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================
+         CỘT DƯỚI: GHI CHÚ
+    ========================== -->
+    <section class="bottom-column card">
+      <h2>Tác vụ receptionist</h2>
+      <p>
+        Trang này hỗ trợ receptionist theo dõi booking, kiểm tra payment, thực hiện check-in,
+        check-out và xử lí hủy booking trong phạm vi khách sạn của mình.
+      </p>
+    </section>
+  </main>
+
+  <!-- =========================
+       MODAL CHI TIẾT BOOKING
+  ========================== -->
+  <div id="detailOverlay" class="overlay hidden">
+    <div class="floating-panel">
+      <button id="closeDetailBtn" class="close-btn" type="button">×</button>
+
+      <div class="detail-top">
+        <h3>Chi tiết booking</h3>
+        <span id="detailPaymentChip" class="status-chip">Payment</span>
+      </div>
+
+      <div class="detail-block">
+        <h4>Thông tin booking</h4>
+        <div id="detailBookingInfo" class="detail-grid"></div>
+      </div>
+
+      <div class="detail-actions">
+        <button id="checkInBtn" class="primary-btn" type="button">Check-in</button>
+        <button id="checkOutBtn" class="view-btn" type="button">Check-out</button>
+        <button id="cancelBookingBtn" class="danger-btn" type="button">Hủy booking</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================
+       MODAL XÁC NHẬN
+  ========================== -->
+  <div id="confirmOverlay" class="overlay hidden">
+    <div class="confirm-panel">
+      <h3>Xác nhận thao tác</h3>
+      <p id="confirmMessage">Bạn có chắc muốn thực hiện thao tác này không?</p>
+      <div class="confirm-actions">
+        <button id="confirmCancelBtn" class="ghost-btn" type="button">Hủy</button>
+        <button id="confirmOkBtn" class="danger-btn" type="button">Xác nhận</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="/static/js/receptionist/receptionist_booking_payment.js"></script>
+</body>
+</html>
