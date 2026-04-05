@@ -3,6 +3,8 @@ from typing import Any
 from datetime import datetime, timedelta
 import httpx
 from dotenv import load_dotenv
+from core.database import query_all as db_query_all, query_one as db_query_one
+from services.hotel_pricing_service import build_default_room_offers, get_default_price_from
 
 load_dotenv()
 
@@ -59,7 +61,7 @@ def _unsplash_url(photo_id: str, w: int = 900, h: int = 600) -> str:
     """Tạo URL Unsplash CDN trực tiếp theo photo_id — không cần API key."""
     return (
         f"https://images.unsplash.com/photo-{photo_id}"
-        f"?q=80&w={w}&h={h}&auto=format&fit=crop"
+        f"?q=80&w={w}&h={h}&auto=format&fit=crop&ixlib=rb-4.0.3"
     )
 
 
@@ -529,6 +531,160 @@ def _mock_offers(check_in: str, adults: int) -> list[dict[str, Any]]:
         },
     ]
 
+
+def _db_hotel_images(hotel_db_id: int) -> list[dict[str, str]]:
+    rows = db_query_all(
+        """
+        SELECT ImageUrl, Caption
+        FROM HotelImages
+        WHERE HotelId = ?
+        ORDER BY DisplayOrder, ImageId
+        """,
+        (hotel_db_id,),
+    )
+    return [
+        {"url": row["ImageUrl"], "caption": row.get("Caption") or ""}
+        for row in rows
+        if row.get("ImageUrl")
+    ]
+
+
+def _db_hotel_detail_payload(hotel_id: str, check_in: str, adults: int) -> dict[str, Any] | None:
+    hotel = db_query_one(
+        """
+        SELECT TOP 1
+            h.HotelId,
+            h.ExternalHotelCode,
+            h.HotelName,
+            h.Description,
+            h.Address,
+            h.Latitude,
+            h.Longitude,
+            h.StarRating,
+            h.ThumbnailUrl,
+            c.CityName,
+            c.CountryName,
+            ISNULL((
+                SELECT AVG(CAST(r.Rating AS FLOAT))
+                FROM Reviews r
+                WHERE r.HotelId = h.HotelId
+            ), 0) AS RatingOverall,
+            (
+                SELECT COUNT(*)
+                FROM Reviews r
+                WHERE r.HotelId = h.HotelId
+            ) AS ReviewsCount
+        FROM Hotels h
+        LEFT JOIN Cities c ON c.CityId = h.CityId
+        WHERE h.ExternalHotelCode = ? OR CAST(h.HotelId AS VARCHAR(50)) = ?
+        ORDER BY CASE WHEN h.ExternalHotelCode = ? THEN 0 ELSE 1 END, h.HotelId DESC
+        """,
+        (hotel_id, hotel_id, hotel_id),
+    )
+    if not hotel:
+        return None
+
+    amenity_rows = db_query_all(
+        """
+        SELECT s.ServiceName, s.IconEmoji
+        FROM HotelServices hs
+        JOIN Services s ON s.ServiceId = hs.ServiceId
+        WHERE hs.HotelId = ?
+          AND hs.IsAvailable = 1
+          AND s.IsActive = 1
+        ORDER BY s.ServiceId
+        """,
+        (hotel["HotelId"],),
+    )
+    amenities = []
+    for row in amenity_rows:
+        icon = (row.get("IconEmoji") or "").strip()
+        label = (row.get("ServiceName") or "").strip()
+        if label:
+            amenities.append(f"{icon} {label}".strip())
+
+    offer_rows = db_query_all(
+        """
+        SELECT
+            OfferId,
+            RoomType,
+            Description,
+            Capacity,
+            PricePerNight,
+            Currency,
+            AvailableQuantity,
+            CheckInDate,
+            CheckOutDate,
+            CancellationPolicy
+        FROM RoomOffers
+        WHERE HotelId = ?
+        ORDER BY PricePerNight ASC, OfferId ASC
+        """,
+        (hotel["HotelId"],),
+    )
+
+    offers = [
+        {
+            "offer_id": str(row["OfferId"]),
+            "room_type": row.get("RoomType") or "Room",
+            "description": row.get("Description") or "Phòng tiêu chuẩn.",
+            "beds": 1,
+            "bed_type": "Standard",
+            "capacity": int(row.get("Capacity") or max(2, adults)),
+            "price_total": float(row["PricePerNight"]),
+            "price_base": float(row["PricePerNight"]),
+            "currency": row.get("Currency") or "VND",
+            "check_in_date": str(row["CheckInDate"]) if row.get("CheckInDate") else check_in,
+            "check_out_date": str(row["CheckOutDate"]) if row.get("CheckOutDate") else None,
+            "cancellation_policy": row.get("CancellationPolicy") or "Theo chính sách khách sạn.",
+            "payment_type": "Pay at hotel",
+            "available_quantity": int(row.get("AvailableQuantity") or 0),
+        }
+        for row in offer_rows
+        if row.get("PricePerNight") is not None
+    ]
+
+    images = _db_hotel_images(hotel["HotelId"])
+    if not images:
+        fallback_key = hotel.get("ExternalHotelCode") or str(hotel["HotelId"])
+        images = _hotel_gallery(fallback_key)
+
+    price_from = min((float(item["price_total"]) for item in offers), default=None)
+    if not offers:
+        offers = build_default_room_offers(int(hotel["HotelId"]))
+        for item in offers:
+            item["check_in_date"] = check_in
+            item["check_out_date"] = None
+    if price_from is None:
+        price_from = get_default_price_from(int(hotel["HotelId"]))
+
+    description = (hotel.get("Description") or "").strip()
+    if not description:
+        city_text = hotel.get("CityName") or "điểm đến này"
+        description = f"Khách sạn tại {city_text}, dữ liệu được đồng bộ từ hệ thống nội bộ."
+
+    return {
+        "hotel_id": hotel.get("ExternalHotelCode") or str(hotel["HotelId"]),
+        "name": hotel.get("HotelName") or "Unknown hotel",
+        "chain_code": None,
+        "address": hotel.get("Address") or "",
+        "latitude": hotel.get("Latitude"),
+        "longitude": hotel.get("Longitude"),
+        "description": description,
+        "amenities": amenities,
+        "images": images,
+        "offers": offers,
+        "price_from": price_from,
+        "currency": offers[0]["currency"] if offers else "VND",
+        "check_in": check_in,
+        "adults": adults,
+        "rating": {
+            "overall": round(float(hotel.get("RatingOverall") or 0), 1),
+            "reviews_count": int(hotel.get("ReviewsCount") or 0),
+            "sentiments": {},
+        },
+    }
+
 def _pick_midday_item(items: list[dict[str, Any]]) -> dict[str, Any]:
     if not items:
         return {}
@@ -665,6 +821,10 @@ def get_weather_forecast_3days(
         "days": daily_forecasts,
     }
 def get_hotel_detail_payload(hotel_id: str, check_in: str, adults: int = 2) -> dict[str, Any]:
+    db_payload = _db_hotel_detail_payload(hotel_id=hotel_id, check_in=check_in, adults=adults)
+    if db_payload:
+        return db_payload
+
     payload = _geoapify_get(
         "/v2/place-details",
         {"id": hotel_id, "features": "details", "lang": "vi"},

@@ -1,9 +1,9 @@
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
 function formatMoney(value, currency = "VND") {
-  if (value == null || value === "") return "N/A";
+  if (value == null || value === "" || value === 0) return "Liên hệ";
   const n = Number(value);
-  if (Number.isNaN(n)) return `${value} ${currency}`;
+  if (Number.isNaN(n) || n === 0) return "Liên hệ";
   return new Intl.NumberFormat("vi-VN", {
     style: "currency", currency, maximumFractionDigits: 0,
   }).format(n);
@@ -15,6 +15,22 @@ function renderStars(count) {
 }
 
 // ─── City alias ────────────────────────────────────────────────────────────────
+
+function normalizePriceValue(...candidates) {
+  for (const raw of candidates) {
+    if (raw == null || raw === "") continue;
+    if (typeof raw === "number" && Number.isFinite(raw) && raw > 0) return raw;
+
+    if (typeof raw === "string") {
+      const cleaned = raw
+        .replace(/[^\d.,-]/g, "")
+        .replace(/,(?=\d{3}\b)/g, "");
+      const parsed = Number(cleaned);
+      if (Number.isFinite(parsed) && parsed > 0) return parsed;
+    }
+  }
+  return null;
+}
 
 const CITY_NAMES = {
   BKK: "Bangkok", PAR: "Paris", SGN: "Ho Chi Minh City", HAN: "Hanoi",
@@ -182,6 +198,29 @@ async function loadWeatherSidebar(cityRaw, checkIn) {
   container.innerHTML = buildWeatherHTML(data);
 }
 
+async function loadWeatherSidebarForHotel(hotelData, checkIn, fallbackCityCode) {
+  const container = document.getElementById("weatherContent");
+  if (!container) return;
+  container.innerHTML = `
+    <div class="weather-loading">
+      <div class="spinner" style="border-color:rgba(255,255,255,.3);border-top-color:white"></div>
+      <span>Äang táº£i dá»± bÃ¡o theo vá»‹ trÃ­ khÃ¡ch sáº¡nâ€¦</span>
+    </div>`;
+
+  let data = null;
+  if (hotelData?.latitude != null && hotelData?.longitude != null) {
+    data = await fetchWeatherFromBackend({
+      lat: hotelData.latitude,
+      lon: hotelData.longitude,
+      checkIn,
+    });
+  }
+  if (!data && fallbackCityCode) {
+    data = await fetchWeatherFromBackend({ cityCode: fallbackCityCode, checkIn });
+  }
+  container.innerHTML = buildWeatherHTML(data);
+}
+
 async function loadWeatherDetail(hotelData) {
   const card    = document.getElementById("detailWeather");
   const content = document.getElementById("detailWeatherContent");
@@ -204,25 +243,28 @@ async function loadAmenitiesFromDB() {
   try {
     const res = await fetch("/api/amenities");
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const list = await res.json();
+    const raw = await res.json();
+    // API trả về { id, name, icon, description } — chuẩn hoá về { key, label, icon }
+    const list = raw.map(a => ({
+      key:   String(a.id),          // dùng id làm key để filter
+      label: a.name  || a.label || "",
+      icon:  a.icon  || "",
+    }));
     _amenityMap = {};
-    list.forEach(a => {
-      _amenityMap[a.key] = { label: a.label, icon: a.icon };
-    });
+    list.forEach(a => { _amenityMap[a.key] = { label: a.label, icon: a.icon }; });
     renderAmenityFilter(list);
     return list;
   } catch (e) {
     console.warn("Could not load amenities from DB, using fallback:", e.message);
-    // Fallback hardcoded
     const fallback = [
-      { key: "wifi",       label: "Wi-Fi miễn phí", icon: "📶" },
-      { key: "pool",       label: "Hồ bơi",         icon: "🏊" },
-      { key: "ac",         label: "Điều hòa",        icon: "❄️" },
-      { key: "parking",    label: "Bãi đỗ xe",       icon: "🅿️" },
-      { key: "gym",        label: "Phòng gym",        icon: "🏋️" },
-      { key: "spa",        label: "Spa",              icon: "💆" },
-      { key: "restaurant", label: "Nhà hàng",         icon: "🍽" },
-      { key: "pets",       label: "Thú cưng",         icon: "🐾" },
+      { key: "1", label: "Wi-Fi",      icon: "📶" },
+      { key: "2", label: "Hồ bơi",     icon: "🏊" },
+      { key: "3", label: "Điều hòa",   icon: "❄️" },
+      { key: "4", label: "Bãi đỗ xe",  icon: "🅿️" },
+      { key: "5", label: "Phòng gym",  icon: "🏋️" },
+      { key: "6", label: "Spa",        icon: "💆" },
+      { key: "7", label: "Nhà hàng",   icon: "🍽" },
+      { key: "8", label: "Thú cưng",   icon: "🐾" },
     ];
     fallback.forEach(a => { _amenityMap[a.key] = { label: a.label, icon: a.icon }; });
     renderAmenityFilter(fallback);
@@ -236,10 +278,9 @@ function renderAmenityFilter(list) {
   container.innerHTML = list.map(a => `
     <label class="amenity-item">
       <input type="checkbox" value="${a.key}" />
-      ${a.icon} ${a.label}
+      ${a.label}
     </label>
   `).join("");
-  // Re-attach listeners after rendering
   initAmenityFilter();
 }
 
@@ -248,8 +289,14 @@ function renderAmenityFilter(list) {
 function enrichHotels(hotels) {
   return hotels.map((h) => ({
     ...h,
-    _stars: h.stars ?? 3,
-    _price: h.price_from ?? 0,
+    _stars: Math.round(Number(h.stars) || 3),   // luôn là số nguyên 1-5
+    _price: normalizePriceValue(
+      h.price_from,
+      h.min_price,
+      h.price,
+      h.lowest_price,
+      h.minPrice
+    ),
     _amenities: h.amenities_preview ?? [],
   }));
 }
@@ -266,6 +313,7 @@ function renderPage(page) {
   const checkIn   = document.getElementById("checkInDate")?.value || "2026-04-08";
   const checkOut  = document.getElementById("checkOutDate")?.value || "";
   const adults    = document.getElementById("adults")?.value || "2";
+  const budgetMax = Number(document.getElementById("budgetRange")?.value ?? 5000000);
 
   const start = (page - 1) * PAGE_SIZE;
   const end   = start + PAGE_SIZE;
@@ -323,18 +371,40 @@ function getFilters() {
 }
 
 function applyFilters(hotels) {
-  const { budgetMax, starChecks, amenChecks } = getFilters();
+  const { starChecks, amenChecks } = getFilters();
   const sort = document.getElementById("sortSelect")?.value ?? "default";
 
   let list = hotels.filter(h => {
-    if (h._price > 0 && h._price > budgetMax) return false;
-    if (starChecks.length > 0 && !starChecks.includes(String(h._stars))) return false;
-    if (amenChecks.length > 0) {
-      if (!amenChecks.every(a => (h._amenities || []).some(ha =>
-        (typeof ha === "string" ? ha.toLowerCase() : "").includes(a.toLowerCase()) ||
-        ha === a
-      ))) return false;
+
+    // Filter giá — null price (chưa có phòng) luôn pass qua, không lọc
+
+    // Filter sao — checkbox "1" = 1-2 sao, "3" = 3 sao, "4" = 4 sao, "5" = 5 sao
+    if (starChecks.length > 0) {
+      const s = h._stars;
+      const pass = starChecks.some(v => {
+        if (v === "1") return s <= 2;       // 1-2 sao
+        if (v === "3") return s === 3;
+        if (v === "4") return s === 4;
+        if (v === "5") return s === 5;
+        return String(s) === v;
+      });
+      if (!pass) return false;
     }
+
+    // Filter amenity — so sánh theo tên service (label text) thay vì ID số
+    // amenities_preview từ DB giờ là mảng string kiểu "🏊 Hồ bơi"
+    // _amenityMap[key].label là "Hồ bơi"
+    if (amenChecks.length > 0) {
+      if (!(h._amenities || []).length) return false; // hotel chưa có services thì không pass filter
+      const pass = amenChecks.every(key => {
+        const label = (_amenityMap[key]?.label || "").toLowerCase();
+        return (h._amenities || []).some(a =>
+          typeof a === "string" && a.toLowerCase().includes(label) && label !== ""
+        );
+      });
+      if (!pass) return false;
+    }
+
     return true;
   });
 
@@ -351,18 +421,37 @@ function applyFilters(hotels) {
 
 function createHotelCard(hotel, checkIn, checkOut, adults, idx) {
   const delay = Math.min(idx * 60, 600);
-  const thumb = hotel.thumbnail
-    ? `<img src="${hotel.thumbnail}" alt="${hotel.name}" loading="lazy"/>`
-    : `<div class="image-placeholder">🏨</div>`;
+  const detailHotelId = hotel.hotel_db_id || hotel.hotel_id;
+
+  // Picsum fallback: seed từ hotel_id → ảnh nhất quán, luôn load được
+  const picsumSeed = encodeURIComponent(
+    (hotel.hotel_id || "hotel").toString().slice(-8)
+  );
+  const fallbackSrc = `https://picsum.photos/seed/${picsumSeed}/480/320`;
+  const imgSrc = hotel.thumbnail || fallbackSrc;
+  const thumb = `<img src="${imgSrc}" alt="${hotel.name}" loading="lazy"
+    onerror="this.onerror=null;this.src='${fallbackSrc}'"/>`;
 
   const starsHTML = "★".repeat(hotel._stars) + `<span style="color:#d1d5db">${"★".repeat(5 - hotel._stars)}</span>`;
   const country = hotel.country_code
     ? `<span class="hotel-country-tag">${hotel.country_code}</span>` : "";
-  const amenPreview = (hotel._amenities || []).slice(0, 4).map(a => `<span class="amenity-icon">${a}</span>`).join("");
+
+  // Amenity preview: hiển thị tối đa 4 dịch vụ dạng tag (text ngắn, không icon dài)
+  const amenList = (hotel._amenities || []).slice(0, 4);
+  const amenPreview = amenList.map(a => {
+    // Lấy phần text sau emoji (nếu có), trim lại
+    const text = a.replace(/^[\p{Emoji}\s]+/u, "").trim() || a;
+    return `<span class="amenity-tag">${text}</span>`;
+  }).join("");
 
   // Build URL with checkOut
   const params = new URLSearchParams({ check_in: checkIn, adults });
   if (checkOut) params.set("check_out", checkOut);
+
+  // Giá: null → "Liên hệ"
+  const priceDisplay = hotel._price != null
+  ? formatMoney(hotel._price, "VND")
+  : `<span style="font-size:14px;color:var(--text-muted)">Liên hệ</span>`;
 
   return `
     <article class="hotel-card" style="animation-delay:${delay}ms">
@@ -381,13 +470,13 @@ function createHotelCard(hotel, checkIn, checkOut, adults, idx) {
           ${country}
           <span class="stars" style="font-size:14px;letter-spacing:1px">${starsHTML}</span>
         </div>
-        <div class="hotel-amenities-preview">${amenPreview}</div>
+        ${amenPreview ? `<div class="hotel-amenities-preview" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">${amenPreview}</div>` : ""}
       </div>
 
       <div class="hotel-card-price">
         <div>
           <div class="price-night">Giá từ / đêm</div>
-          <div class="price-value">${formatMoney(hotel._price, "VND")}</div>
+          <div class="price-value">${priceDisplay}</div>
           <div class="price-note">Đã bao gồm thuế (demo)</div>
         </div>
         <div>
@@ -398,7 +487,7 @@ function createHotelCard(hotel, checkIn, checkOut, adults, idx) {
             ${hotel._stars}.0
           </div>
           <a class="card-detail-btn" style="margin-top:8px;display:flex"
-             href="/hotels/${hotel.hotel_id}?${params.toString()}">
+             href="/hotels/${detailHotelId}?${params.toString()}">
             Xem chi tiết →
           </a>
         </div>
@@ -409,6 +498,16 @@ function createHotelCard(hotel, checkIn, checkOut, adults, idx) {
 // ─── Master hotel list ────────────────────────────────────────────────────────
 
 let allHotels = [];
+let currentSearchKeyword = "";
+
+function syncSidebarWeather(checkIn) {
+  if (filteredCache.length) {
+    return loadWeatherSidebarForHotel(filteredCache[0], checkIn, currentSearchKeyword);
+  }
+  if (currentSearchKeyword) {
+    return loadWeatherSidebar(currentSearchKeyword, checkIn);
+  }
+}
 
 function renderResults(checkIn, checkOut, adults) {
   const resultBox = document.getElementById("hotelResults");
@@ -425,6 +524,7 @@ function renderResults(checkIn, checkOut, adults) {
   topbar.style.display = "flex";
   countEl.innerHTML = `<strong>${filteredCache.length}</strong> / ${allHotels.length} khách sạn`;
 
+  syncSidebarWeather(checkIn);
   if (!filteredCache.length) {
     resultBox.innerHTML = `
       <div class="empty-state">
@@ -452,7 +552,8 @@ function resetFilters() {
   if (range) { range.value = range.max; updateBudgetLabel(Number(range.max)); }
   const sortSel = document.getElementById("sortSelect");
   if (sortSel) sortSel.value = "default";
-  renderResults();
+  if (currentSearchKeyword) loadHotels();
+  else renderResults();
 }
 
 async function loadHotels() {
@@ -460,25 +561,28 @@ async function loadHotels() {
   const checkIn   = document.getElementById("checkInDate")?.value || "";
   const checkOut  = document.getElementById("checkOutDate")?.value || "";
   const adults    = document.getElementById("adults")?.value || "2";
+  const budgetMax = Number(document.getElementById("budgetRange")?.value ?? 5000000);
   const resultBox = document.getElementById("hotelResults");
   const topbar    = document.getElementById("resultsTopbar");
 
-  if (!raw) { alert("Vui lòng nhập city code hoặc tên thành phố."); return; }
+  if (!raw) { alert("Vui lòng nhập tên khách sạn hoặc điểm đến."); return; }
 
-  const cityName = resolveCityName(raw);
-  resultBox.innerHTML = `<div class="loading-card"><div class="spinner"></div><span>Đang tìm khách sạn tại <strong>${cityName}</strong>…</span></div>`;
+  const cityName = raw;
+  currentSearchKeyword = raw;
+  resultBox.innerHTML = `<div class="loading-card"><div class="spinner"></div><span>Đang tìm khách sạn cho <strong>${cityName}</strong>…</span></div>`;
   topbar.style.display = "none";
 
   // Clear pagination
   const pag = document.getElementById("pagination");
   if (pag) pag.innerHTML = "";
 
-  // Tải thời tiết song song
+  // Tải thời tiết ban đầu theo từ khóa; sau khi có kết quả sẽ sync theo hotel đầu tiên
   loadWeatherSidebar(raw, checkIn);
 
   try {
-    // Không giới hạn max_results — lấy tất cả, phân trang phía client
-    const res = await fetch(`/api/hotels?city_code=${encodeURIComponent(raw)}&max_results=50`);
+    const url = `/api/hotels?keyword=${encodeURIComponent(raw)}&max_price=${encodeURIComponent(budgetMax)}&max_results=50`;
+
+    const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const raw_hotels = await res.json();
 
@@ -486,7 +590,7 @@ async function loadHotels() {
       resultBox.innerHTML = `
         <div class="empty-state">
           <div class="empty-icon">🔍</div>
-          <p>Không tìm thấy khách sạn cho "<strong>${cityName}</strong>".<br>Thử: BKK, HAN, SGN, PAR, TYO…</p>
+          <p>Không tìm thấy khách sạn cho "<strong>${cityName}</strong>" trong dữ liệu nội bộ.</p>
         </div>`;
       return;
     }
@@ -511,7 +615,9 @@ function initBudgetRange() {
   if (!range) return;
   range.addEventListener("input", () => {
     updateBudgetLabel(Number(range.value));
-    if (allHotels.length) renderResults();
+  });
+  range.addEventListener("change", () => {
+    if (currentSearchKeyword) loadHotels();
   });
 }
 
@@ -552,15 +658,24 @@ function renderGallery(images) {
     gallery.innerHTML = `<div class="gallery-main no-image">📷 Không có ảnh</div>`;
     return;
   }
+  const hotelId = document.body.dataset.hotelId || "hotel";
+  const picsumSeed = encodeURIComponent(hotelId.toString().slice(-8));
   const [main, ...rest] = images;
   gallery.innerHTML = `
-    <div class="gallery-main"><img src="${main.url}" alt="${main.caption || "Hotel"}"/></div>
+    <div class="gallery-main">
+      <img src="${main.url}" alt="${main.caption || "Hotel"}"
+        onerror="this.onerror=null;this.src='https://picsum.photos/seed/${picsumSeed}0/1200/800'"/>
+    </div>
     <div class="gallery-side">
-      ${rest.slice(0, 4).map(img =>
-        `<div class="gallery-thumb"><img src="${img.url}" alt="${img.caption || "Hotel"}"/></div>`
+      ${rest.slice(0, 4).map((img, i) =>
+        `<div class="gallery-thumb">
+          <img src="${img.url}" alt="${img.caption || "Hotel"}"
+            onerror="this.onerror=null;this.src='https://picsum.photos/seed/${picsumSeed}${i + 1}/480/320'"/>
+        </div>`
       ).join("")}
     </div>`;
 }
+
 
 function renderSentiments(rating) {
   const box     = document.getElementById("sentiments");
@@ -629,8 +744,15 @@ async function loadHotelDetail() {
          </div>`
       : `<div class="rating-empty">Chưa có điểm đánh giá</div>`;
 
+    const detailPrice = normalizePriceValue(
+      data.price_from,
+      data.min_price,
+      data.price,
+      data.lowest_price,
+      data.minPrice
+    );
     document.getElementById("priceFrom").textContent =
-      data.price_from ? formatMoney(data.price_from, data.currency) : "N/A";
+      detailPrice != null ? formatMoney(detailPrice, data.currency) : "N/A";
     document.getElementById("bookingSummary").textContent =
       `Check-in ${data.check_in} · ${data.adults} người lớn`;
 
@@ -869,6 +991,25 @@ function getDirectionsMapbox(destLat, destLon) {
 
 // ─── Init ──────────────────────────────────────────────────────────────────────
 
+// Inject CSS cho amenity-tag (không cần sửa style.css)
+(function injectStyles() {
+  const style = document.createElement("style");
+  style.textContent = `
+    .amenity-tag {
+      display:inline-block;
+      padding:2px 8px;
+      border-radius:12px;
+      background:#f0f4ff;
+      color:#3b5bdb;
+      font-size:11px;
+      font-weight:600;
+      white-space:nowrap;
+    }
+    .hotel-amenities-preview { gap: 4px; flex-wrap: wrap; }
+  `;
+  document.head.appendChild(style);
+})();
+
 document.addEventListener("DOMContentLoaded", async () => {
   const page = document.body.dataset.page;
 
@@ -884,15 +1025,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (e.key === "Enter") loadHotels();
     });
     document.getElementById("applyFilter")?.addEventListener("click", () => {
-      if (allHotels.length) renderResults();
+      if (currentSearchKeyword) loadHotels();
     });
     document.getElementById("sortSelect")?.addEventListener("change", () => {
       if (allHotels.length) renderResults();
     });
     document.getElementById("checkInDate")?.addEventListener("change", () => {
-      const raw = document.getElementById("cityCode")?.value?.trim();
       const checkIn = document.getElementById("checkInDate")?.value;
-      if (raw && checkIn) loadWeatherSidebar(raw, checkIn);
+      if (checkIn) syncSidebarWeather(checkIn);
     });
 
     // Read params from URL and trigger search
@@ -974,7 +1114,7 @@ async function addFavorite(hotelId) {
         }
 
         alert(data.message);
-        console.log("✅ Đã thêm yêu thích:", data);
+        console.log(" Đã thêm yêu thích:", data);
 
     } catch (error) {
         console.error("Lỗi khi thêm yêu thích:", error);
