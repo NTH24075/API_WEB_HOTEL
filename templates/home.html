@@ -5,6 +5,7 @@
   <title>StayBook – Khám phá điểm đến</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -500,6 +501,7 @@
       .dest-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
     }
   </style>
+  <link rel="stylesheet" href="/static/css/user/auth.css" />
 </head>
 <body>
 
@@ -511,7 +513,10 @@
     <a href="#">Chuyến đi của tôi</a>
     <a href="#">Hỗ trợ</a>
   </nav>
-  <button class="topbar-cta" onclick="goSearch()">Tìm ngay</button>
+  <div class="topbar-actions" id="topbarActions">
+    <button class="topbar-login" id="openLoginBtn" type="button">Đăng nhập</button>
+    <button class="topbar-cta" id="openRegisterBtn" type="button">Đăng kí</button>
+  </div>
 </header>
 
 <!-- ── HERO ── -->
@@ -524,13 +529,107 @@
   <div class="hero-vignette"></div>
 
   <div class="hero-content">
+    <div class="center-panel home-panel active" id="homePanel">
     <span class="hero-eyebrow">Nền tảng đặt phòng thông minh</span>
     <h1 class="hero-title">Tìm <em>khách sạn</em><br/>hoàn hảo của bạn</h1>
     <p class="hero-sub">Khám phá hàng nghìn lựa chọn tại mọi điểm đến — từ resort 5 sao đến boutique hotel độc đáo.</p>
+    </div>
+
+    <div class="center-panel login-panel" id="loginPanel">
+      <div class="login-card">
+        <div class="login-card-head">
+          <p class="login-kicker">Chao mung tro lai</p>
+          <h2>Dang nhap tai khoan</h2>
+          <p>Dang nhap de xem chuyen di, lich su dat phong va uu dai danh rieng cho ban.</p>
+        </div>
+
+        <form class="login-form" id="loginForm">
+          <div id="g_id_onload"
+               data-client_id="{{ google_client_id }}"
+               data-callback="handleGoogleCredential">
+          </div>
+
+          <div class="g_id_signin"
+               data-type="standard"
+               data-size="large"
+               data-theme="outline"
+               data-text="continue_with"
+               data-shape="pill">
+          </div>
+
+          <div class="login-divider">
+            <span>hoac</span>
+          </div>
+
+          <div class="login-field">
+            <label for="loginEmail">Email</label>
+            <input id="loginEmail" type="email" placeholder="Nhap email cua ban" required />
+          </div>
+
+          <div class="login-field">
+            <label for="loginPassword">Mat khau</label>
+            <input id="loginPassword" type="password" placeholder="Nhap mat khau" required />
+          </div>
+
+          <button type="submit" class="login-submit">Dang nhap</button>
+          <button type="button" class="login-back" id="backHomeBtn">&larr; Quay lai trang chu</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="center-panel register-panel" id="registerPanel">
+      <div class="login-card">
+        <div class="login-card-head">
+          <p class="login-kicker">Tao tai khoan moi</p>
+          <h2>Dang ky tai khoan</h2>
+          <p>Dien thong tin co ban de tao tai khoan nguoi dung moi.</p>
+        </div>
+
+        <form class="login-form" id="registerForm">
+          <div class="login-field">
+            <label for="registerFullName">Ho va ten</label>
+            <input id="registerFullName" type="text" placeholder="Nhap ho va ten" required />
+          </div>
+
+          <div class="login-field">
+            <label for="registerEmail">Email</label>
+            <input id="registerEmail" type="email" placeholder="Nhap email" required />
+          </div>
+
+          <div class="login-field">
+            <label for="registerPassword">Mat khau</label>
+            <input id="registerPassword" type="password" placeholder="Nhap mat khau" required />
+          </div>
+
+          <div class="login-field">
+            <label for="registerPhone">So dien thoai</label>
+            <input id="registerPhone" type="text" placeholder="Nhap so dien thoai" />
+          </div>
+
+          <div class="login-field">
+            <label for="registerCitizenId">CCCD</label>
+            <input id="registerCitizenId" type="text" placeholder="Nhap CCCD (khong bat buoc)" />
+          </div>
+
+          <div class="login-field">
+            <label for="registerAddress">Dia chi</label>
+            <input id="registerAddress" type="text" placeholder="Nhap dia chi (khong bat buoc)" />
+          </div>
+
+          <div class="login-field">
+            <label for="registerAvatarUrl">Avatar URL</label>
+            <input id="registerAvatarUrl" type="text" placeholder="Nhap link anh dai dien (khong bat buoc)" />
+          </div>
+
+          <button type="submit" class="login-submit">Dang ky</button>
+          <button type="button" class="login-back" id="backFromRegisterBtn">&larr; Quay lai trang chu</button>
+        </form>
+      </div>
+    </div>
   </div>
 
   <!-- Search bar anchored at bottom of hero, overlapping content below -->
-  <div class="search-bar-wrap">
+  <div class="search-bar-wrap" id="searchBarWrap">
     <div class="search-bar">
       <div class="sb-field">
         <span class="sb-label">🏙 Điểm đến</span>
@@ -728,5 +827,6 @@
     if (e.key === 'Enter') goSearch();
   });
 </script>
+<script src="/static/js/user/auth.js"></script>
 </body>
 </html>

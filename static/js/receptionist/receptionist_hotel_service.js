@@ -101,7 +101,7 @@ function authHeaders() {
 ========================================= */
 function ensureReceptionistAccess() {
   if (!accessToken || !currentUser) {
-    window.location.href = "/auth-page";
+window.location.href = "/";
     return false;
   }
 
@@ -128,7 +128,7 @@ async function fetchWithAuth(url, options = {}) {
   if (response.status === 401 || response.status === 403) {
     localStorage.removeItem("access_token");
     localStorage.removeItem("current_user");
-    window.location.href = "/auth-page";
+window.location.href = "/";
     throw new Error("Phiên đăng nhập đã hết hạn hoặc bạn không có quyền truy cập.");
   }
 
@@ -251,7 +251,7 @@ function hidePriceFilterError() {
 function handleLogout() {
   localStorage.removeItem("access_token");
   localStorage.removeItem("current_user");
-  window.location.href = "/auth-page";
+window.location.href = "/";
 }
 
 /* =========================================

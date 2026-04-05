@@ -35,7 +35,7 @@ function authHeaders() {
 function ensureUserAccess() {
   if (!accessToken || !currentUser) {
     alert("Bạn chưa đăng nhập.");
-    window.location.href = "/auth-page";
+window.location.href = "/";
     return false;
   }
 
@@ -60,7 +60,7 @@ async function fetchWithAuth(url, options = {}) {
     alert("Phiên đăng nhập không hợp lệ.");
     localStorage.removeItem("access_token");
     localStorage.removeItem("current_user");
-    window.location.href = "/auth-page";
+window.location.href = "/";
     throw new Error("Unauthorized");
   }
 
@@ -246,7 +246,7 @@ async function handleDeleteRequestSubmit(event) {
 function handleLogout() {
   localStorage.removeItem("access_token");
   localStorage.removeItem("current_user");
-  window.location.href = "/auth-page";
+window.location.href = "/";
 }
 
 function bindEvents() {

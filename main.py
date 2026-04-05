@@ -68,6 +68,7 @@ def home(request: Request):
         name="home.html",
         context={
             "mapbox_token": MAPBOX_TOKEN,
+            "google_client_id": os.getenv("GOOGLE_CLIENT_ID"),
         }
     )
 

@@ -26,6 +26,28 @@ def normalize_nullable_text(value, use_placeholder: bool = False):
 
     return text
 
+def normalize_phone_text(value, use_placeholder: bool = False, max_length: int = 20):
+    text = normalize_nullable_text(value, use_placeholder=False)
+    if text is None:
+        return "Äang cáº­p nháº­t" if use_placeholder else None
+
+    first = text.split(";")[0].split(",")[0].strip()
+    if not first:
+        return "Äang cáº­p nháº­t" if use_placeholder else None
+    return first[:max_length]
+
+
+def normalize_email_text(value, use_placeholder: bool = False, max_length: int = 100):
+    text = normalize_nullable_text(value, use_placeholder=False)
+    if text is None:
+        return "Äang cáº­p nháº­t" if use_placeholder else None
+
+    first = text.split(";")[0].split(",")[0].strip()
+    if not first:
+        return "Äang cáº­p nháº­t" if use_placeholder else None
+    return first[:max_length]
+
+
 def normalize_star_rating(value, default: float = 3.0):
     if value is None:
         return default
@@ -476,8 +498,8 @@ def import_hotels_by_city_to_db(
 
             hotel_name = normalize_nullable_text(hotel["hotel_name"], use_placeholder_for_null) or "Unnamed hotel"
             address = normalize_nullable_text(hotel["address"], use_placeholder_for_null)
-            phone = normalize_nullable_text(hotel["phone"], use_placeholder_for_null)
-            email = normalize_nullable_text(hotel["email"], use_placeholder_for_null)
+            phone = normalize_phone_text(hotel["phone"], use_placeholder_for_null)
+            email = normalize_email_text(hotel["email"], use_placeholder_for_null)
             thumbnail_url = normalize_nullable_text(hotel["thumbnail_url"], use_placeholder_for_null)
             source = normalize_nullable_text(hotel["source"], use_placeholder_for_null) or "Geoapify"
 
